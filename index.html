@@ -130,9 +130,13 @@
     #loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:9999;transition:opacity .3s}
     #loading-overlay.hidden{opacity:0;pointer-events:none}
 
-    /* ── Print ── */
+    /* ── Chips de PA ── */
+    .pa-chip{display:inline-flex;align-items:center;gap:6px;background:#f0f6f6;border:1.5px solid #1a5c5a;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:#1a2e2e}
+    .pa-chip button{background:transparent;border:none;color:#4a6a6a;cursor:pointer;font-size:14px;line-height:1;padding:0}
+    .pa-chip button:hover{color:#dc2626}
+
     @media print {
-      #header,#btn-logout,.rel-back,.rel-actions,.filtros-bar,#loading-overlay,#toast{display:none!important}
+      #header,#btn-logout,.rel-back,.rel-actions,.filtros-bar,#modo-criticos .filtros-bar,#modo-pa,#loading-overlay,#toast{display:none!important}
       .rel-panel.active{display:block}
       .table-wrap{border:none}
       body{background:#fff}
@@ -228,6 +232,13 @@
           <div class="rel-card-title">Extrato de Produto</div>
           <div class="rel-card-desc">Histórico completo de um produto específico com saldo progressivo a cada movimento.</div>
           <div><span class="rel-card-badge">Insumo ou PA</span></div>
+        </div>
+
+        <div class="rel-card" onclick="abrirRelatorio('compras')" style="border-color:rgba(217,119,6,.3);background:rgba(217,119,6,.03)">
+          <div class="rel-card-icon">🛒</div>
+          <div class="rel-card-title">Lista de Compras</div>
+          <div class="rel-card-desc">Gera lista de compras por itens críticos (zerado/mínimo/ponto de pedido) ou baseada na estrutura de PAs a produzir.</div>
+          <div><span class="rel-card-badge" style="background:rgba(217,119,6,.15);color:#b45309">Compras</span></div>
         </div>
 
       </div>
@@ -531,8 +542,84 @@
       </div>
     </div>
 
+    <!-- ══ RELATÓRIO 7: LISTA DE COMPRAS ══ -->
+    <div id="rel-compras" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">🛒 Lista de Compras</div>
+        <div class="rel-actions">
+          <button class="btn btn-excel btn-sm" onclick="exportarExcel('compras')">⬇ Excel</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+
+      <!-- Seletor de modo -->
+      <div style="display:flex;gap:10px;margin-bottom:4px">
+        <button id="tab-criticos" class="btn btn-primary btn-sm" onclick="setModoCompras('criticos')" style="flex:1">⚠️ Itens Críticos</button>
+        <button id="tab-pa" class="btn btn-secondary btn-sm" onclick="setModoCompras('pa')" style="flex:1">🏭 Baseado em PA</button>
+      </div>
+
+      <!-- MODO 1: CRÍTICOS -->
+      <div id="modo-criticos">
+        <div class="filtros-bar">
+          <div class="filtro-group">
+            <label>Critério</label>
+            <select id="crit-criterio">
+              <option value="todos">Todos (zerado + mínimo + ponto pedido)</option>
+              <option value="zerado">Zerado (saldo = 0)</option>
+              <option value="minimo">Abaixo do Mínimo</option>
+              <option value="ponto">Abaixo do Ponto de Pedido</option>
+            </select>
+          </div>
+          <div class="filtro-group">
+            <label>Tipo</label>
+            <select id="crit-tipo"><option value="">Todos</option></select>
+          </div>
+          <div class="filtro-group" style="min-width:200px">
+            <label>Buscar</label>
+            <input type="text" id="crit-busca" placeholder="Código ou descrição...">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="gerarListaCriticos()" style="margin-top:20px">🔍 Gerar</button>
+        </div>
+      </div>
+
+      <!-- MODO 2: PA -->
+      <div id="modo-pa" style="display:none">
+        <div class="filtros-bar" style="align-items:flex-end;gap:10px">
+          <div class="filtro-group" style="min-width:180px">
+            <label>Código do PA</label>
+            <input type="text" id="pa-codigo" placeholder="Ex: VTV-001" autocapitalize="characters"
+              onkeydown="if(event.key==='Enter')adicionarPA()">
+          </div>
+          <div class="filtro-group" style="min-width:100px">
+            <label>Quantidade</label>
+            <input type="number" id="pa-qtde" min="1" value="1" placeholder="1">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="adicionarPA()" style="margin-top:20px">+ Adicionar PA</button>
+          <button class="btn btn-secondary btn-sm" onclick="limparPAs()" style="margin-top:20px">✕ Limpar</button>
+        </div>
+
+        <!-- Lista de PAs adicionados -->
+        <div id="pa-lista" style="display:none;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:4px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px">PAs para produzir:</div>
+          <div id="pa-itens" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          <button class="btn btn-primary btn-sm" onclick="gerarListaPA()" style="margin-top:12px;width:100%">🔍 Calcular lista de compras</button>
+        </div>
+      </div>
+
+      <!-- Tabela de resultado -->
+      <div class="table-wrap">
+        <div class="table-info">
+          <span id="compras-count">Configure os filtros e clique em Gerar</span>
+          <span id="compras-total" style="font-weight:700;color:#d97706"></span>
+        </div>
+        <div id="compras-table-body">
+          <div class="empty"><div class="empty-icon">🛒</div><div class="empty-text">Selecione um modo e clique em Gerar</div></div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /main -->
-</div><!-- /app -->
 
 <script src="config.js"></script>
 <script>
@@ -1180,6 +1267,269 @@ function exportarExcel(rel) {
   };
   script.onerror = () => toast('Erro ao carregar biblioteca de exportação.', 'err');
   if (window.XLSX) { script.onload(); } else { document.head.appendChild(script); }
+}
+
+// ══════════════════════════════════════════════════════
+//  REL 7: LISTA DE COMPRAS
+// ══════════════════════════════════════════════════════
+let _modoCompras = 'criticos';
+let _paList = []; // [{ codigo, descricao, qtde }]
+
+function setModoCompras(modo) {
+  _modoCompras = modo;
+  document.getElementById('modo-criticos').style.display = modo === 'criticos' ? 'block' : 'none';
+  document.getElementById('modo-pa').style.display       = modo === 'pa'       ? 'block' : 'none';
+  document.getElementById('tab-criticos').className = 'btn btn-sm ' + (modo==='criticos'?'btn-primary':'btn-secondary');
+  document.getElementById('tab-pa').className       = 'btn btn-sm ' + (modo==='pa'      ?'btn-primary':'btn-secondary');
+  document.getElementById('compras-table-body').innerHTML = '<div class="empty"><div class="empty-icon">🛒</div><div class="empty-text">Configure os filtros e clique em Gerar</div></div>';
+  document.getElementById('compras-count').textContent = 'Configure os filtros e clique em Gerar';
+  document.getElementById('compras-total').textContent = '';
+}
+
+// ── Modo Críticos ─────────────────────────────────────
+async function gerarListaCriticos() {
+  setLoading('compras-table-body', 'compras-count', 'Calculando lista de compras...');
+  try {
+    const res = await api('listarCadastro', { filtroSituacao: 'ATIVO' });
+    let itens = Array.isArray(res) ? res : [];
+
+    const criterio = document.getElementById('crit-criterio').value;
+    const tipo     = document.getElementById('crit-tipo').value;
+    const busca    = document.getElementById('crit-busca').value.trim().toLowerCase();
+    const termos   = busca.split(/\s+/).filter(Boolean);
+
+    // Popula filtro de tipo
+    if (!document.getElementById('crit-tipo').options.length > 1) {
+      const tipos = [...new Set(itens.map(i => i.tipo).filter(Boolean))].sort();
+      const sel = document.getElementById('crit-tipo');
+      sel.innerHTML = '<option value="">Todos</option>' + tipos.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    }
+
+    // Filtra por critério
+    itens = itens.filter(i => {
+      const s = i.estoqueAtual || 0;
+      const min = i.estoqueMin  || 0;
+      const seg = i.estoqueSeg  || i.estoqueSeguranca || 0;
+      const pp  = i.pontoPedido || 0;
+      if (criterio === 'zerado')  return s <= 0;
+      if (criterio === 'minimo')  return s <= min;
+      if (criterio === 'ponto')   return s <= pp;
+      // todos: zerado OU abaixo do mínimo OU abaixo do ponto de pedido
+      return s <= 0 || s <= min || (pp > 0 && s <= pp);
+    });
+
+    // Filtro tipo
+    if (tipo) itens = itens.filter(i => i.tipo === tipo);
+    // Filtro busca
+    if (termos.length) itens = itens.filter(i =>
+      termos.every(t => i.codigo?.toLowerCase().includes(t) || i.descricao?.toLowerCase().includes(t))
+    );
+
+    // Calcula quantidade sugerida = Estoque Segurança - Saldo atual (mínimo 1)
+    const resultado = itens.map(i => {
+      const seg = i.estoqueSeg || i.estoqueSeguranca || i.estoqueMin || 0;
+      const falta = Math.max(seg - (i.estoqueAtual||0), 1);
+      return {
+        codigo:       i.codigo,
+        descricao:    i.descricao,
+        tipo:         i.tipo||'',
+        saldoAtual:   i.estoqueAtual||0,
+        estoqueMin:   i.estoqueMin||0,
+        estoqueSeg:   seg,
+        pontoPedido:  i.pontoPedido||0,
+        sugerido:     falta,
+        endereco:     i.endereco||'',
+        criterio:     (i.estoqueAtual||0) <= 0 ? 'Zerado' :
+                      (i.estoqueAtual||0) <= (i.estoqueMin||0) ? 'Abaixo Mínimo' : 'Abaixo Ponto Pedido',
+      };
+    }).sort((a,b) => a.saldoAtual - b.saldoAtual); // mais críticos primeiro
+
+    _dadosRel['compras'] = resultado;
+    _renderListaCompras(resultado);
+  } catch(e) {
+    document.getElementById('compras-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+    document.getElementById('compras-count').textContent = 'Erro';
+  }
+}
+
+// ── Modo PA ───────────────────────────────────────────
+async function adicionarPA() {
+  const codigo = document.getElementById('pa-codigo').value.trim().toUpperCase();
+  const qtde   = parseInt(document.getElementById('pa-qtde').value||1);
+  if (!codigo) { toast('Informe o código do PA.', 'warn'); return; }
+  if (qtde < 1) { toast('Quantidade inválida.', 'warn'); return; }
+
+  // Verifica se já está na lista
+  const existente = _paList.find(p => p.codigo === codigo);
+  if (existente) {
+    existente.qtde += qtde;
+    _renderPAChips();
+    toast(`Quantidade de ${codigo} atualizada para ${existente.qtde}`);
+  } else {
+    // Busca descrição
+    toast(`⏳ Buscando ${codigo}...`, 'ok', 2000);
+    try {
+      const res = await api('listarCadastroPA', { filtroSituacao: 'TODOS' });
+      const pa  = (Array.isArray(res) ? res : []).find(p => p.codigo?.toUpperCase() === codigo);
+      _paList.push({ codigo, descricao: pa?.descricao || codigo, qtde });
+      _renderPAChips();
+      document.getElementById('pa-codigo').value = '';
+      document.getElementById('pa-qtde').value   = '1';
+      document.getElementById('pa-codigo').focus();
+      toast(`✔ ${codigo} adicionado`);
+    } catch(e) {
+      _paList.push({ codigo, descricao: codigo, qtde });
+      _renderPAChips();
+    }
+  }
+}
+
+function removerPA(codigo) {
+  _paList = _paList.filter(p => p.codigo !== codigo);
+  _renderPAChips();
+}
+
+function limparPAs() {
+  _paList = [];
+  _renderPAChips();
+  document.getElementById('compras-table-body').innerHTML = '<div class="empty"><div class="empty-icon">🛒</div><div class="empty-text">Adicione PAs acima e clique em Calcular</div></div>';
+  document.getElementById('compras-count').textContent = 'Adicione PAs acima';
+  document.getElementById('compras-total').textContent = '';
+}
+
+function _renderPAChips() {
+  const lista = document.getElementById('pa-lista');
+  const div   = document.getElementById('pa-itens');
+  if (!_paList.length) { lista.style.display = 'none'; return; }
+  lista.style.display = 'block';
+  div.innerHTML = _paList.map(p => `
+    <div class="pa-chip">
+      <span><strong>${esc(p.codigo)}</strong> × ${p.qtde}</span>
+      <button onclick="removerPA('${esc(p.codigo)}')" title="Remover">✕</button>
+    </div>`).join('');
+}
+
+async function gerarListaPA() {
+  if (!_paList.length) { toast('Adicione pelo menos um PA.', 'warn'); return; }
+  setLoading('compras-table-body', 'compras-count', 'Calculando necessidade de insumos...');
+
+  try {
+    // Busca estrutura e saldos em paralelo
+    const [resEstrutura, resMovimentos] = await Promise.all([
+      api('listarEstruturaTodos'),
+      api('listarSaldosInsumos'),
+    ]);
+
+    const estrutura = resEstrutura?.itens || resEstrutura || [];
+    const saldos    = resMovimentos?.saldos || resMovimentos || {};
+
+    // Consolida necessidade por insumo
+    const mapa = {}; // codigoInsumo → { ...dados, necessario, temNoEstoque, faltaComprar }
+
+    for (const pa of _paList) {
+      const itensPA = estrutura.filter(e =>
+        String(e.codigoProduto||e.CODIGO_PRODUTO||'').toUpperCase() === pa.codigo
+      );
+      for (const item of itensPA) {
+        const codIns   = String(item.codigoInsumo||item.CODIGO_INSUMO||'').trim();
+        const qtdeUnit = Number(item.qtdeUtilizada||item.QTDE_UTILIZADA||0);
+        const necessario = qtdeUnit * pa.qtde;
+        if (!codIns || necessario <= 0) continue;
+        if (!mapa[codIns]) {
+          mapa[codIns] = {
+            codigo:      codIns,
+            descricao:   item.descricaoInsumo||item.DESCRICAO_INSUMO||codIns,
+            necessario:  0,
+            saldoAtual:  Number(saldos[codIns]||0),
+            origem:      [], // quais PAs pedem este insumo
+          };
+        }
+        mapa[codIns].necessario += necessario;
+        mapa[codIns].origem.push(`${pa.codigo}×${pa.qtde}`);
+      }
+    }
+
+    // Calcula o que falta
+    const resultado = Object.values(mapa)
+      .map(i => ({
+        ...i,
+        temNoEstoque:  Math.min(i.saldoAtual, i.necessario),
+        faltaComprar:  Math.max(i.necessario - i.saldoAtual, 0),
+        suficiente:    i.saldoAtual >= i.necessario,
+        origem:        [...new Set(i.origem)].join(', '),
+      }))
+      .filter(i => i.faltaComprar > 0) // só o que precisa comprar
+      .sort((a,b) => b.faltaComprar - a.faltaComprar);
+
+    _dadosRel['compras'] = resultado;
+    _renderListaCompras(resultado, 'pa');
+  } catch(e) {
+    document.getElementById('compras-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+    document.getElementById('compras-count').textContent = 'Erro';
+  }
+}
+
+// ── Renderização ──────────────────────────────────────
+function _renderListaCompras(dados, modo = 'criticos') {
+  const total = dados.length;
+  const totalSugerido = dados.reduce((s,i) => s + (i.sugerido||i.faltaComprar||0), 0);
+  document.getElementById('compras-count').innerHTML = `<strong>${fmtNum(total)}</strong> item(ns) para comprar`;
+  document.getElementById('compras-total').textContent = total ? `Total de unidades: ${fmtNum(totalSugerido)}` : '';
+
+  if (!dados.length) {
+    document.getElementById('compras-table-body').innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Nenhum item para comprar com esses critérios.</div></div>';
+    return;
+  }
+
+  if (modo === 'pa') {
+    document.getElementById('compras-table-body').innerHTML = `
+      <table>
+        <thead><tr>
+          ${_thSort('compras','codigo','Código')}
+          ${_thSort('compras','descricao','Descrição')}
+          ${_thSort('compras','necessario','Necessário','num')}
+          ${_thSort('compras','saldoAtual','Saldo Atual','num')}
+          ${_thSort('compras','temNoEstoque','Tem no Estoque','num')}
+          ${_thSort('compras','faltaComprar','⬇ Falta Comprar','num')}
+          <th>PAs que pedem</th>
+        </tr></thead>
+        <tbody>${dados.map(i => `<tr>
+          <td class="mono">${esc(i.codigo)}</td>
+          <td>${esc(i.descricao)}</td>
+          <td class="num">${fmtNum(i.necessario)}</td>
+          <td class="num ${i.saldoAtual<=0?'neg':'pos'}">${fmtNum(i.saldoAtual)}</td>
+          <td class="num">${fmtNum(i.temNoEstoque)}</td>
+          <td class="num" style="font-weight:800;color:#d97706;font-size:14px">${fmtNum(i.faltaComprar)}</td>
+          <td style="font-size:11px;color:#4a6a6a">${esc(i.origem||'')}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  } else {
+    document.getElementById('compras-table-body').innerHTML = `
+      <table>
+        <thead><tr>
+          ${_thSort('compras','criterio','Situação')}
+          ${_thSort('compras','codigo','Código')}
+          ${_thSort('compras','descricao','Descrição')}
+          ${_thSort('compras','tipo','Tipo')}
+          ${_thSort('compras','saldoAtual','Saldo Atual','num')}
+          ${_thSort('compras','estoqueMin','Mínimo','num')}
+          ${_thSort('compras','estoqueSeg','Segurança','num')}
+          ${_thSort('compras','sugerido','⬇ Sugerido Comprar','num')}
+          <th>Endereço</th>
+        </tr></thead>
+        <tbody>${dados.map(i => `<tr>
+          <td><span class="${i.saldoAtual<=0?'badge-critico':i.criterio.includes('Mínimo')?'badge-baixo':'badge-b'}">${esc(i.criterio)}</span></td>
+          <td class="mono">${esc(i.codigo)}</td>
+          <td>${esc(i.descricao)}</td>
+          <td style="font-size:11px;color:#4a6a6a">${esc(i.tipo)}</td>
+          <td class="num ${i.saldoAtual<=0?'neg':'warn'}">${fmtNum(i.saldoAtual)}</td>
+          <td class="num">${fmtNum(i.estoqueMin)}</td>
+          <td class="num">${fmtNum(i.estoqueSeg)}</td>
+          <td class="num" style="font-weight:800;color:#d97706;font-size:14px">${fmtNum(i.sugerido)}</td>
+          <td class="mono" style="font-size:11px">${esc(i.endereco||'—')}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  }
 }
 
 // ══════════════════════════════════════════════════════
