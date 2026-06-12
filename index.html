@@ -540,7 +540,8 @@
 //  ESTADO
 // ══════════════════════════════════════════════════════
 let USUARIO = null;
-let _dadosRel = {}; // cache dos dados de cada relatório
+let _dadosRel = {};
+let _sortState = {}; // { coluna, dir } por relatório
 
 // ══════════════════════════════════════════════════════
 //  API
@@ -697,7 +698,48 @@ async function gerarMovimentos() {
   }
 }
 
+// Renderiza linhas de movimentos
+function _rowMov(m) {
+  return `<tr>
+    <td class="mono">${esc(m.data||'')}</td>
+    <td>${esc(m._origem||'')}</td>
+    <td><span class="badge-${(m.tipo||'').toLowerCase()==='entrada'?'entrada':'saida'}">${esc(m.tipo||'')}</span></td>
+    <td class="mono">${esc(m.codigo||'')}</td>
+    <td>${esc(m.descricao||'')}</td>
+    <td class="num ${(m.tipo||'').toUpperCase()==='ENTRADA'?'pos':'neg'}">${fmtNum(m.qtde)}</td>
+    <td class="mono">${esc(m.op||'')}</td>
+    <td>${esc(m.usuario||'')}</td>
+    <td style="color:#4a6a6a;font-size:11px">${esc(m.obs||'')}</td>
+  </tr>`;
+}
+
+function sortRel(rel, col) {
+  const dados = _dadosRel[rel];
+  if (!dados?.length) return;
+  const cur = _sortState[rel] || {};
+  const dir = cur.col === col && cur.dir === 'asc' ? 'desc' : 'asc';
+  _sortState[rel] = { col, dir };
+  dados.sort((a,b) => {
+    const va = a[col] ?? '', vb = b[col] ?? '';
+    if (typeof va === 'number') return dir==='asc' ? va-vb : vb-va;
+    return dir==='asc' ? String(va).localeCompare(String(vb),'pt-BR') : String(vb).localeCompare(String(va),'pt-BR');
+  });
+  if (rel === 'movimentos')      renderMovimentos(dados);
+  if (rel === 'estoque-insumos') { _dadosRel['estoque-insumos'] = dados; filtrarEstoqueInsumos(); }
+  if (rel === 'estoque-pa')      { _dadosRel['estoque-pa'] = dados; filtrarEstoquePA(); }
+  if (rel === 'ops')             _renderOpsRows(dados);
+  if (rel === 'abc')             _renderAbcRows(dados);
+  if (rel === 'extrato')         _renderExtratoRows(dados);
+}
+
+function _thSort(rel, col, label, cls='') {
+  const s = _sortState[rel];
+  const icon = s?.col===col ? (s.dir==='asc'?'↑':'↓') : '↕';
+  return `<th class="${cls}" onclick="sortRel('${rel}','${col}')" style="cursor:pointer">${label} <span style="opacity:.5">${icon}</span></th>`;
+}
+
 function renderMovimentos(movs) {
+  _dadosRel['movimentos'] = movs;
   document.getElementById('mov-count').innerHTML = `<strong>${fmtNum(movs.length)}</strong> registros encontrados`;
   if (!movs.length) {
     document.getElementById('mov-table-body').innerHTML = '<div class="empty"><div class="empty-icon">🔄</div><div class="empty-text">Nenhum movimento encontrado com esses filtros.</div></div>';
@@ -706,21 +748,17 @@ function renderMovimentos(movs) {
   document.getElementById('mov-table-body').innerHTML = `
     <table>
       <thead><tr>
-        <th>Data/Hora</th><th>Origem</th><th>Tipo</th><th>Código</th>
-        <th>Descrição</th><th class="num">Qtde</th><th>OP</th>
-        <th>Usuário</th><th>Obs</th>
+        ${_thSort('movimentos','data','Data/Hora')}
+        ${_thSort('movimentos','_origem','Origem')}
+        ${_thSort('movimentos','tipo','Tipo')}
+        ${_thSort('movimentos','codigo','Código')}
+        ${_thSort('movimentos','descricao','Descrição')}
+        ${_thSort('movimentos','qtde','Qtde','num')}
+        ${_thSort('movimentos','op','OP')}
+        ${_thSort('movimentos','usuario','Usuário')}
+        <th>Obs</th>
       </tr></thead>
-      <tbody>${movs.map(m => `<tr>
-        <td class="mono">${esc(m.data||'')}</td>
-        <td>${esc(m._origem||'')}</td>
-        <td><span class="badge-${(m.tipo||'').toLowerCase()==='entrada'?'entrada':'saida'}">${esc(m.tipo||'')}</span></td>
-        <td class="mono">${esc(m.codigo||'')}</td>
-        <td>${esc(m.descricao||'')}</td>
-        <td class="num ${(m.tipo||'').toUpperCase()==='ENTRADA'?'pos':'neg'}">${fmtNum(m.qtde)}</td>
-        <td class="mono">${esc(m.op||'')}</td>
-        <td>${esc(m.usuario||'')}</td>
-        <td style="color:#4a6a6a;font-size:11px">${esc(m.obs||'')}</td>
-      </tr>`).join('')}</tbody>
+      <tbody>${movs.map(_rowMov).join('')}</tbody>
     </table>`;
 }
 
@@ -764,11 +802,15 @@ function filtrarEstoqueInsumos() {
     document.getElementById('ei-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">Nenhum insumo encontrado.</div></div>';
     return;
   }
+  _dadosRel['estoque-insumos-filtrado'] = filtrado;
   document.getElementById('ei-table-body').innerHTML = `
     <table>
       <thead><tr>
-        <th>Código</th><th>Descrição</th><th>Tipo</th>
-        <th class="num">Saldo</th><th class="num">Mínimo</th>
+        ${_thSort('estoque-insumos','codigo','Código')}
+        ${_thSort('estoque-insumos','descricao','Descrição')}
+        ${_thSort('estoque-insumos','tipo','Tipo')}
+        ${_thSort('estoque-insumos','estoqueAtual','Saldo','num')}
+        ${_thSort('estoque-insumos','estoqueMin','Mínimo','num')}
         <th>Endereço</th><th>Status</th>
       </tr></thead>
       <tbody>${filtrado.map(i => {
@@ -826,11 +868,15 @@ function filtrarEstoquePA() {
     document.getElementById('ep-table-body').innerHTML = '<div class="empty"><div class="empty-icon">🏭</div><div class="empty-text">Nenhum PA encontrado.</div></div>';
     return;
   }
+  _dadosRel['estoque-pa-filtrado'] = filtrado;
   document.getElementById('ep-table-body').innerHTML = `
     <table>
       <thead><tr>
-        <th>Código</th><th>Descrição</th><th>Família</th>
-        <th class="num">Saldo</th><th class="num">Mínimo</th>
+        ${_thSort('estoque-pa','codigo','Código')}
+        ${_thSort('estoque-pa','descricao','Descrição')}
+        ${_thSort('estoque-pa','familia','Família')}
+        ${_thSort('estoque-pa','estoqueAtual','Saldo','num')}
+        ${_thSort('estoque-pa','estoqueMin','Mínimo','num')}
         <th>Endereço</th><th>Status</th>
       </tr></thead>
       <tbody>${filtrado.map(i => {
@@ -852,6 +898,51 @@ function filtrarEstoquePA() {
 // ══════════════════════════════════════════════════════
 //  REL 4: OPS
 // ══════════════════════════════════════════════════════
+// ── Helpers de re-render para ordenação ──────────────────────────────────────
+function _renderOpsRows(ops) {
+  const tbody = document.querySelector('#ops-table-body tbody');
+  if (!tbody) return;
+  tbody.innerHTML = ops.map(o => `<tr>
+    <td class="mono">${esc(o.op||'')}</td>
+    <td class="mono">${esc(o.pedido||'')}</td>
+    <td class="mono">${esc(o.codigo||'')}</td>
+    <td>${esc(o.descricao||'')}</td>
+    <td class="num">${fmtNum(o.qtde)}</td>
+    <td><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(26,92,90,.1);color:#1a5c5a">${esc(o.origem||'—')}</span></td>
+    <td><span class="${o.estado==='PAGO'?'badge-ok':o.estado==='EM_BAIXA'?'badge-b':'badge-critico'}">${esc(o.estado||'')}</span></td>
+    <td style="font-size:11px;color:#4a6a6a">${esc(o.obs||'')}</td>
+    <td style="font-size:11px;color:#4a6a6a">${esc(o.silk||'')}</td>
+  </tr>`).join('');
+}
+
+function _renderAbcRows(itens) {
+  const tbody = document.querySelector('#abc-table-body tbody');
+  if (!tbody) return;
+  tbody.innerHTML = itens.map(i => `<tr>
+    <td class="mono" style="color:#4a6a6a">${i.rank}</td>
+    <td><span class="badge-${i.classe.toLowerCase()}">${i.classe}</span></td>
+    <td class="mono">${esc(i.codigo)}</td>
+    <td>${esc(i.descricao)}</td>
+    <td style="font-size:11px;color:#4a6a6a">${esc(i._origem||'')}</td>
+    <td class="num">${fmtNum(i.valor)}</td>
+    <td class="num">${i.pctAcum.toFixed(1)}%</td>
+  </tr>`).join('');
+}
+
+function _renderExtratoRows(movs) {
+  const tbody = document.querySelector('#ext-table-body tbody');
+  if (!tbody) return;
+  tbody.innerHTML = movs.map(m => `<tr>
+    <td class="mono">${esc(m.data||'')}</td>
+    <td><span class="badge-${m.tipo?.toLowerCase()==='entrada'?'entrada':'saida'}">${esc(m.tipo||'')}</span></td>
+    <td class="num ${m.tipo?.toUpperCase()==='ENTRADA'?'pos':'neg'}">${fmtNum(m.qtde)}</td>
+    <td class="num" style="font-weight:700">${fmtNum(m.saldoApos)}</td>
+    <td class="mono">${esc(m.op||'')}</td>
+    <td>${esc(m.usuario||'')}</td>
+    <td style="font-size:11px;color:#4a6a6a">${esc(m.obs||'')}</td>
+  </tr>`).join('');
+}
+
 async function gerarOPs() {
   setLoading('ops-table-body', 'ops-count', 'Carregando OPs...');
   try {
@@ -874,11 +965,18 @@ async function gerarOPs() {
       document.getElementById('ops-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma OP encontrada.</div></div>';
       return;
     }
+    _dadosRel['ops'] = ops;
     document.getElementById('ops-table-body').innerHTML = `
       <table>
         <thead><tr>
-          <th>OP</th><th>Pedido</th><th>Código</th><th>Descrição</th>
-          <th class="num">Qtde</th><th>Origem</th><th>Estado</th><th>OBS</th><th>SILK</th>
+          ${_thSort('ops','op','OP')}
+          ${_thSort('ops','pedido','Pedido')}
+          ${_thSort('ops','codigo','Código')}
+          ${_thSort('ops','descricao','Descrição')}
+          ${_thSort('ops','qtde','Qtde','num')}
+          ${_thSort('ops','origem','Origem')}
+          ${_thSort('ops','estado','Estado')}
+          <th>OBS</th><th>SILK</th>
         </tr></thead>
         <tbody>${ops.map(o => `<tr>
           <td class="mono">${esc(o.op||'')}</td>
@@ -951,12 +1049,17 @@ async function gerarABC() {
     document.getElementById('abc-resumo').style.display = 'grid';
     document.getElementById('abc-count').innerHTML = `<strong>${fmtNum(itens.length)}</strong> produtos analisados`;
 
+    _dadosRel['abc'] = itens;
     document.getElementById('abc-table-body').innerHTML = `
       <table>
         <thead><tr>
-          <th>#</th><th>Classe</th><th>Código</th><th>Descrição</th>
-          <th>Origem</th><th class="num">${metrica==='qtde'?'Qtde saída':'Nº movimentos'}</th>
-          <th class="num">% Acumulado</th>
+          ${_thSort('abc','rank','#')}
+          ${_thSort('abc','classe','Classe')}
+          ${_thSort('abc','codigo','Código')}
+          ${_thSort('abc','descricao','Descrição')}
+          ${_thSort('abc','_origem','Origem')}
+          ${_thSort('abc','valor', metrica==='qtde'?'Qtde saída':'Nº movimentos','num')}
+          ${_thSort('abc','pctAcum','% Acumulado','num')}
         </tr></thead>
         <tbody>${itens.map(i => `<tr>
           <td class="mono" style="color:#4a6a6a">${i.rank}</td>
@@ -1012,6 +1115,7 @@ async function gerarExtrato() {
     document.getElementById('ext-resumo').style.display = 'grid';
 
     _dadosRel.extrato = movsSaldo;
+    _dadosRel['extrato'] = movsSaldo;
     document.getElementById('ext-count').innerHTML = `<strong>${fmtNum(movsSaldo.length)}</strong> movimentos de <strong>${esc(codigo)}</strong>`;
 
     if (!movsSaldo.length) {
@@ -1021,8 +1125,13 @@ async function gerarExtrato() {
     document.getElementById('ext-table-body').innerHTML = `
       <table>
         <thead><tr>
-          <th>Data/Hora</th><th>Tipo</th><th class="num">Qtde</th>
-          <th class="num">Saldo após</th><th>OP</th><th>Usuário</th><th>Obs</th>
+          ${_thSort('extrato','data','Data/Hora')}
+          ${_thSort('extrato','tipo','Tipo')}
+          ${_thSort('extrato','qtde','Qtde','num')}
+          ${_thSort('extrato','saldoApos','Saldo após','num')}
+          ${_thSort('extrato','op','OP')}
+          ${_thSort('extrato','usuario','Usuário')}
+          <th>Obs</th>
         </tr></thead>
         <tbody>${movsSaldo.map(m => `<tr>
           <td class="mono">${esc(m.data||'')}</td>
