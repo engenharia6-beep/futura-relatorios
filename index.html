@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a5c5a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Relatórios Futura">
+  <link rel="manifest" href="manifest.json">
+  <title>Relatórios de Gestão — Futura</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#f0f4f5; --bg-card:#ffffff; --bg-input:#ffffff;
+      --border:#c8d8da; --border-focus:#1a5c5a;
+      --text:#1a2e2e; --text-muted:#4a6a6a; --text-label:#7a9a9a;
+      --accent:#1a5c5a; --accent-hover:#154948;
+      --success:#16a34a; --warning:#d97706; --danger:#dc2626;
+      --radius:10px; --radius-sm:6px;
+      --shadow:0 2px 8px rgba(0,0,0,.08);
+      --font:'Inter',system-ui,sans-serif;
+      --mono:'JetBrains Mono',monospace;
+      --header-h:56px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+    button{cursor:pointer;border:none;outline:none;font-family:inherit}
+    input,select{font-family:inherit}
+
+    /* ── Login ── */
+    #page-login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 24px;background:var(--bg)}
+    .login-logo{width:64px;height:64px;background:var(--accent);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:20px;box-shadow:0 8px 32px rgba(26,92,90,.25)}
+    .login-title{font-size:22px;font-weight:800;color:var(--text);text-align:center}
+    .login-sub{font-size:13px;color:var(--text-muted);margin:4px 0 28px;text-align:center}
+    .login-form{width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px}
+    .field label{display:block;font-size:11px;font-weight:700;color:var(--text-label);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+    .field input{width:100%;height:46px;padding:0 14px;background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:15px;transition:border-color .18s}
+    .field input:focus{border-color:var(--border-focus);outline:none}
+
+    /* ── App ── */
+    #app{display:none;flex-direction:column;min-height:100vh}
+    #app.visible{display:flex}
+    #header{height:var(--header-h);background:#1a5c5a;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+    #header-title{flex:1;font-size:15px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.08em}
+    #header-user{font-size:12px;color:rgba(255,255,255,.7)}
+    #btn-logout{background:transparent;color:rgba(255,255,255,.7);font-size:20px;padding:4px;line-height:1;transition:color .18s}
+    #btn-logout:hover{color:#fff}
+    #main{flex:1;padding:20px;max-width:1400px;margin:0 auto;width:100%}
+
+    /* ── Botões ── */
+    .btn{height:40px;padding:0 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:all .18s;cursor:pointer}
+    .btn:active{opacity:.85}
+    .btn-primary{background:var(--accent);color:#fff;border:none}
+    .btn-primary:hover{background:var(--accent-hover)}
+    .btn-secondary{background:#fff;color:var(--text);border:1.5px solid var(--border)}
+    .btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+    .btn-sm{height:32px;padding:0 12px;font-size:12px}
+    .btn-excel{background:#217346;color:#fff;border:none}
+    .btn-print{background:#374151;color:#fff;border:none}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+
+    /* ── Cards de relatório (menu inicial) ── */
+    .relatorios-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+    .rel-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:border-color .18s,box-shadow .18s;display:flex;flex-direction:column;gap:10px}
+    .rel-card:hover{border-color:var(--accent);box-shadow:0 4px 16px rgba(26,92,90,.12)}
+    .rel-card-icon{font-size:28px}
+    .rel-card-title{font-size:15px;font-weight:700;color:var(--text)}
+    .rel-card-desc{font-size:12px;color:var(--text-muted);line-height:1.5}
+    .rel-card-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(26,92,90,.1);color:var(--accent)}
+
+    /* ── Painel de relatório ── */
+    .rel-panel{display:none;flex-direction:column;gap:16px}
+    .rel-panel.active{display:flex}
+    .rel-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .rel-back{background:transparent;border:none;color:var(--accent);font-size:13px;font-weight:600;padding:0;cursor:pointer;display:flex;align-items:center;gap:4px}
+    .rel-back:hover{text-decoration:underline}
+    .rel-title{font-size:18px;font-weight:800;flex:1}
+    .rel-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+    /* ── Filtros ── */
+    .filtros-bar{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+    .filtro-group{display:flex;flex-direction:column;gap:5px;min-width:140px}
+    .filtro-group label{font-size:11px;font-weight:700;color:var(--text-label);text-transform:uppercase;letter-spacing:.05em}
+    .filtro-group input,.filtro-group select{height:36px;padding:0 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:#fff;color:var(--text);font-size:13px;transition:border-color .18s}
+    .filtro-group input:focus,.filtro-group select:focus{border-color:var(--border-focus);outline:none}
+
+    /* ── Tabela ── */
+    .table-wrap{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden}
+    .table-info{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)}
+    .table-info strong{color:var(--text)}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    thead tr{background:#f0f6f6}
+    th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+    th:hover{color:var(--accent)}
+    th .sort-icon{margin-left:4px;opacity:.4}
+    th.sorted .sort-icon{opacity:1;color:var(--accent)}
+    td{padding:9px 12px;border-bottom:1px solid #eef2f2;color:var(--text);vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f8fbfb}
+    td.mono{font-family:var(--mono);font-size:11px}
+    td.num{text-align:right;font-family:var(--mono);font-weight:600}
+    td.num.pos{color:var(--success)}
+    td.num.neg{color:var(--danger)}
+    td.num.warn{color:var(--warning)}
+    .badge-entrada{background:rgba(22,163,74,.12);color:#15803d;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+    .badge-saida{background:rgba(220,38,38,.1);color:#b91c1c;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+    .badge-ok{background:rgba(22,163,74,.1);color:#15803d;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+    .badge-critico{background:rgba(220,38,38,.1);color:#b91c1c;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+    .badge-baixo{background:rgba(217,119,6,.1);color:#b45309;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+    .badge-a{background:rgba(220,38,38,.12);color:#b91c1c;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+    .badge-b{background:rgba(217,119,6,.12);color:#b45309;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+    .badge-c{background:rgba(22,163,74,.1);color:#15803d;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+
+    /* ── Empty / Loading ── */
+    .empty{text-align:center;padding:48px 24px;color:var(--text-muted)}
+    .empty-icon{font-size:36px;margin-bottom:10px}
+    .empty-text{font-size:14px}
+    .spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(26,92,90,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a2e2e;color:#fff;font-size:13px;font-weight:500;padding:10px 20px;border-radius:24px;opacity:0;pointer-events:none;transition:all .2s;z-index:2000;white-space:nowrap}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    #toast.ok{background:#14532d}
+    #toast.err{background:#7f1d1d}
+    #toast.warn{background:#78350f}
+
+    /* ── Loading overlay ── */
+    #loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:9999;transition:opacity .3s}
+    #loading-overlay.hidden{opacity:0;pointer-events:none}
+
+    /* ── Print ── */
+    @media print {
+      #header,#btn-logout,.rel-back,.rel-actions,.filtros-bar,#loading-overlay,#toast{display:none!important}
+      .rel-panel.active{display:block}
+      .table-wrap{border:none}
+      body{background:#fff}
+    }
+
+    /* ── Msg ── */
+    .msg{font-size:13px;padding:10px 14px;border-radius:var(--radius-sm);display:none;line-height:1.4}
+    .msg.show{display:block}
+    .msg.err{background:rgba(220,38,38,.1);color:var(--danger);border:1px solid rgba(220,38,38,.2)}
+  </style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="login-logo">📊</div>
+  <div class="spinner"></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ══ LOGIN ══ -->
+<div id="page-login">
+  <div class="login-logo">📊</div>
+  <div class="login-title">Relatórios de Gestão</div>
+  <div class="login-sub">Futura Eletronicos</div>
+  <div class="login-form">
+    <div class="field"><label>Usuário</label>
+      <input id="login-user" type="text" placeholder="seu.usuario" autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="field"><label>Senha</label>
+      <input id="login-pass" type="password" placeholder="••••••••">
+    </div>
+    <div id="login-msg" class="msg"></div>
+    <button id="btn-login" class="btn btn-primary" style="width:100%;height:48px;font-size:15px" onclick="fazerLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <header id="header">
+    <span id="header-title">Relatórios de Gestão</span>
+    <span id="header-user"></span>
+    <button id="btn-logout" onclick="logout()" title="Sair">⏻</button>
+  </header>
+
+  <div id="main">
+
+    <!-- Menu de relatórios -->
+    <div id="menu-relatorios">
+      <div style="margin-bottom:20px">
+        <div style="font-size:22px;font-weight:800;color:var(--text)">Relatórios</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:3px">Selecione o relatório desejado</div>
+      </div>
+      <div class="relatorios-grid">
+
+        <div class="rel-card" onclick="abrirRelatorio('movimentos')">
+          <div class="rel-card-icon">🔄</div>
+          <div class="rel-card-title">Movimentos por Período</div>
+          <div class="rel-card-desc">Entradas e saídas de Insumos e PA em um intervalo de datas, com filtros por produto, usuário e OP.</div>
+          <div><span class="rel-card-badge">Insumos + PA</span></div>
+        </div>
+
+        <div class="rel-card" onclick="abrirRelatorio('estoque-insumos')">
+          <div class="rel-card-icon">📦</div>
+          <div class="rel-card-title">Posição de Estoque — Insumos</div>
+          <div class="rel-card-desc">Saldo atual de todos os insumos com endereço, estoque mínimo e status (ok / crítico / zerado).</div>
+          <div><span class="rel-card-badge">Insumos</span></div>
+        </div>
+
+        <div class="rel-card" onclick="abrirRelatorio('estoque-pa')">
+          <div class="rel-card-icon">🏭</div>
+          <div class="rel-card-title">Posição de Estoque — PA</div>
+          <div class="rel-card-desc">Saldo atual de todos os produtos acabados com endereço e status.</div>
+          <div><span class="rel-card-badge">Produtos Acabados</span></div>
+        </div>
+
+        <div class="rel-card" onclick="abrirRelatorio('ops')">
+          <div class="rel-card-icon">📋</div>
+          <div class="rel-card-title">OPs por Período</div>
+          <div class="rel-card-desc">Ordens de produção pagas em um intervalo de datas com código, descrição, qtde e pedido.</div>
+          <div><span class="rel-card-badge">Ordens de Produção</span></div>
+        </div>
+
+        <div class="rel-card" onclick="abrirRelatorio('abc')">
+          <div class="rel-card-icon">📊</div>
+          <div class="rel-card-title">Curva ABC</div>
+          <div class="rel-card-desc">Produtos classificados por volume de movimentação no período. Identifica os itens mais críticos.</div>
+          <div><span class="rel-card-badge">Análise</span></div>
+        </div>
+
+        <div class="rel-card" onclick="abrirRelatorio('extrato')">
+          <div class="rel-card-icon">🔍</div>
+          <div class="rel-card-title">Extrato de Produto</div>
+          <div class="rel-card-desc">Histórico completo de um produto específico com saldo progressivo a cada movimento.</div>
+          <div><span class="rel-card-badge">Insumo ou PA</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ RELATÓRIO 1: MOVIMENTOS ══ -->
+    <div id="rel-movimentos" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">🔄 Movimentos por Período</div>
+        <div class="rel-actions">
+          <button class="btn btn-excel btn-sm" onclick="exportarExcel('movimentos')">⬇ Excel</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+      <div class="filtros-bar">
+        <div class="filtro-group">
+          <label>De</label>
+          <input type="date" id="mov-de">
+        </div>
+        <div class="filtro-group">
+          <label>Até</label>
+          <input type="date" id="mov-ate">
+        </div>
+        <div class="filtro-group">
+          <label>Tipo</label>
+          <select id="mov-tipo">
+            <option value="">Todos</option>
+            <option value="ENTRADA">Entrada</option>
+            <option value="SAIDA">Saída</option>
+          </select>
+        </div>
+        <div class="filtro-group">
+          <label>Origem</label>
+          <select id="mov-origem">
+            <option value="">Insumos + PA</option>
+            <option value="insumo">Só Insumos</option>
+            <option value="pa">Só PA</option>
+          </select>
+        </div>
+        <div class="filtro-group" style="min-width:200px">
+          <label>Produto (código ou descrição)</label>
+          <input type="text" id="mov-produto" placeholder="Ex: VTV-001">
+        </div>
+        <div class="filtro-group">
+          <label>Usuário</label>
+          <input type="text" id="mov-usuario" placeholder="Ex: Delmer">
+        </div>
+        <div class="filtro-group">
+          <label>OP</label>
+          <input type="text" id="mov-op" placeholder="Ex: 8751">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="gerarMovimentos()" style="margin-top:20px">🔍 Gerar</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-info"><span id="mov-count">Defina os filtros e clique em Gerar</span></div>
+        <div id="mov-table-body">
+          <div class="empty"><div class="empty-icon">🔄</div><div class="empty-text">Configure os filtros acima e clique em Gerar</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RELATÓRIO 2: ESTOQUE INSUMOS ══ -->
+    <div id="rel-estoque-insumos" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">📦 Posição de Estoque — Insumos</div>
+        <div class="rel-actions">
+          <button class="btn btn-excel btn-sm" onclick="exportarExcel('estoque-insumos')">⬇ Excel</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+      <div class="filtros-bar">
+        <div class="filtro-group" style="min-width:240px">
+          <label>Buscar</label>
+          <input type="text" id="ei-busca" placeholder="Código ou descrição..." oninput="filtrarEstoqueInsumos()">
+        </div>
+        <div class="filtro-group">
+          <label>Status</label>
+          <select id="ei-status" onchange="filtrarEstoqueInsumos()">
+            <option value="">Todos</option>
+            <option value="critico">Crítico (≤ mínimo)</option>
+            <option value="zerado">Zerado</option>
+            <option value="ok">OK</option>
+          </select>
+        </div>
+        <div class="filtro-group">
+          <label>Tipo</label>
+          <select id="ei-tipo" onchange="filtrarEstoqueInsumos()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="gerarEstoqueInsumos()" style="margin-top:20px">🔍 Atualizar</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-info"><span id="ei-count">Clique em Atualizar para carregar</span></div>
+        <div id="ei-table-body">
+          <div class="empty"><div class="empty-icon">📦</div><div class="empty-text">Clique em Atualizar para carregar os dados</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RELATÓRIO 3: ESTOQUE PA ══ -->
+    <div id="rel-estoque-pa" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">🏭 Posição de Estoque — PA</div>
+        <div class="rel-actions">
+          <button class="btn btn-excel btn-sm" onclick="exportarExcel('estoque-pa')">⬇ Excel</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+      <div class="filtros-bar">
+        <div class="filtro-group" style="min-width:240px">
+          <label>Buscar</label>
+          <input type="text" id="ep-busca" placeholder="Código ou descrição..." oninput="filtrarEstoquePA()">
+        </div>
+        <div class="filtro-group">
+          <label>Status</label>
+          <select id="ep-status" onchange="filtrarEstoquePA()">
+            <option value="">Todos</option>
+            <option value="critico">Crítico (≤ mínimo)</option>
+            <option value="zerado">Zerado</option>
+            <option value="ok">OK</option>
+          </select>
+        </div>
+        <div class="filtro-group">
+          <label>Família</label>
+          <select id="ep-familia" onchange="filtrarEstoquePA()">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="gerarEstoquePA()" style="margin-top:20px">🔍 Atualizar</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-info"><span id="ep-count">Clique em Atualizar para carregar</span></div>
+        <div id="ep-table-body">
+          <div class="empty"><div class="empty-icon">🏭</div><div class="empty-text">Clique em Atualizar para carregar os dados</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RELATÓRIO 4: OPS ══ -->
+    <div id="rel-ops" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">📋 OPs por Período</div>
+        <div class="rel-actions">
+          <button class="btn btn-excel btn-sm" onclick="exportarExcel('ops')">⬇ Excel</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+      <div class="filtros-bar">
+        <div class="filtro-group">
+          <label>De</label>
+          <input type="date" id="ops-de">
+        </div>
+        <div class="filtro-group">
+          <label>Até</label>
+          <input type="date" id="ops-ate">
+        </div>
+        <div class="filtro-group" style="min-width:200px">
+          <label>Produto</label>
+          <input type="text" id="ops-produto" placeholder="Código ou descrição">
+        </div>
+        <div class="filtro-group">
+          <label>Pedido</label>
+          <input type="text" id="ops-pedido" placeholder="Ex: 22893">
+        </div>
+        <div class="filtro-group">
+          <label>Origem</label>
+          <select id="ops-origem">
+            <option value="">Todos</option>
+            <option value="PA">PA</option>
+            <option value="INSUMO">Insumo</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="gerarOPs()" style="margin-top:20px">🔍 Gerar</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-info"><span id="ops-count">Defina os filtros e clique em Gerar</span></div>
+        <div id="ops-table-body">
+          <div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Configure os filtros acima e clique em Gerar</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RELATÓRIO 5: CURVA ABC ══ -->
+    <div id="rel-abc" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">📊 Curva ABC</div>
+        <div class="rel-actions">
+          <button class="btn btn-excel btn-sm" onclick="exportarExcel('abc')">⬇ Excel</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+      <div class="filtros-bar">
+        <div class="filtro-group">
+          <label>De</label>
+          <input type="date" id="abc-de">
+        </div>
+        <div class="filtro-group">
+          <label>Até</label>
+          <input type="date" id="abc-ate">
+        </div>
+        <div class="filtro-group">
+          <label>Origem</label>
+          <select id="abc-origem">
+            <option value="">Insumos + PA</option>
+            <option value="insumo">Só Insumos</option>
+            <option value="pa">Só PA</option>
+          </select>
+        </div>
+        <div class="filtro-group">
+          <label>Métrica</label>
+          <select id="abc-metrica">
+            <option value="qtde">Quantidade movimentada</option>
+            <option value="freq">Frequência (nº de movimentos)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="gerarABC()" style="margin-top:20px">🔍 Gerar</button>
+      </div>
+      <div id="abc-resumo" style="display:none;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <div style="text-align:center;padding:12px;background:rgba(220,38,38,.06);border-radius:8px">
+          <div style="font-size:24px;font-weight:800;color:#dc2626" id="abc-qtd-a">—</div>
+          <div style="font-size:11px;color:#4a6a6a;margin-top:4px">CLASSE A (top 80%)</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:rgba(217,119,6,.06);border-radius:8px">
+          <div style="font-size:24px;font-weight:800;color:#d97706" id="abc-qtd-b">—</div>
+          <div style="font-size:11px;color:#4a6a6a;margin-top:4px">CLASSE B (80–95%)</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:rgba(22,163,74,.06);border-radius:8px">
+          <div style="font-size:24px;font-weight:800;color:#16a34a" id="abc-qtd-c">—</div>
+          <div style="font-size:11px;color:#4a6a6a;margin-top:4px">CLASSE C (95–100%)</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-info"><span id="abc-count">Defina os filtros e clique em Gerar</span></div>
+        <div id="abc-table-body">
+          <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Configure os filtros e clique em Gerar</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RELATÓRIO 6: EXTRATO ══ -->
+    <div id="rel-extrato" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">🔍 Extrato de Produto</div>
+        <div class="rel-actions">
+          <button class="btn btn-excel btn-sm" onclick="exportarExcel('extrato')">⬇ Excel</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+      <div class="filtros-bar">
+        <div class="filtro-group">
+          <label>Tipo</label>
+          <select id="ext-tipo">
+            <option value="insumo">Insumo</option>
+            <option value="pa">PA</option>
+          </select>
+        </div>
+        <div class="filtro-group" style="min-width:220px">
+          <label>Código do produto</label>
+          <input type="text" id="ext-codigo" placeholder="Ex: VTV-001" autocapitalize="characters">
+        </div>
+        <div class="filtro-group">
+          <label>De</label>
+          <input type="date" id="ext-de">
+        </div>
+        <div class="filtro-group">
+          <label>Até</label>
+          <input type="date" id="ext-ate">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="gerarExtrato()" style="margin-top:20px">🔍 Gerar</button>
+      </div>
+      <div id="ext-resumo" style="display:none;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:4px">
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:800;color:var(--accent)" id="ext-saldo-atual">—</div>
+          <div style="font-size:11px;color:#4a6a6a;margin-top:4px">Saldo atual</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:800;color:#16a34a" id="ext-total-entrada">—</div>
+          <div style="font-size:11px;color:#4a6a6a;margin-top:4px">Total entradas</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:800;color:#dc2626" id="ext-total-saida">—</div>
+          <div style="font-size:11px;color:#4a6a6a;margin-top:4px">Total saídas</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:800;color:var(--text)" id="ext-total-mov">—</div>
+          <div style="font-size:11px;color:#4a6a6a;margin-top:4px">Movimentos</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-info"><span id="ext-count">Informe o código e clique em Gerar</span></div>
+        <div id="ext-table-body">
+          <div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Informe o código do produto e clique em Gerar</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script src="config.js"></script>
+<script>
+// ══════════════════════════════════════════════════════
+//  ESTADO
+// ══════════════════════════════════════════════════════
+let USUARIO = null;
+let _dadosRel = {}; // cache dos dados de cada relatório
+
+// ══════════════════════════════════════════════════════
+//  API
+// ══════════════════════════════════════════════════════
+async function api(acao, dados = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), CONFIG.TIMEOUT_MS);
+  try {
+    const res = await fetch(CONFIG.GAS_URL, {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ acao, dados }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch(e) {
+    if (e.name === 'AbortError') throw new Error('Tempo esgotado. Verifique a conexão.');
+    throw e;
+  } finally { clearTimeout(t); }
+}
+
+// ══════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════
+let _tt;
+function toast(msg, tipo = 'ok', dur = 3500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show ' + tipo;
+  clearTimeout(_tt); _tt = setTimeout(() => el.className = '', dur);
+}
+
+// ══════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtNum(n) { return Number(n||0).toLocaleString('pt-BR'); }
+function fmtData(s) { return s ? String(s).substring(0,10).split('-').reverse().join('/') : ''; }
+function mostrarMsg(el, txt, tipo) { el.textContent = txt; el.className = 'msg show ' + tipo; }
+
+function setLoading(tbodyId, countId, msg = 'Carregando...') {
+  document.getElementById(tbodyId).innerHTML = `<div class="empty"><div class="spinner"></div><div class="empty-text" style="margin-top:12px">${msg}</div></div>`;
+  document.getElementById(countId).innerHTML = '<span class="spinner" style="width:14px;height:14px"></span>';
+}
+
+function sortTable(dados, col, dir) {
+  return [...dados].sort((a, b) => {
+    const va = a[col] ?? '', vb = b[col] ?? '';
+    if (typeof va === 'number') return dir === 'asc' ? va - vb : vb - va;
+    return dir === 'asc' ? String(va).localeCompare(String(vb), 'pt-BR') : String(vb).localeCompare(String(va), 'pt-BR');
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  LOGIN
+// ══════════════════════════════════════════════════════
+document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
+
+async function fazerLogin() {
+  const usuario = document.getElementById('login-user').value.trim();
+  const senha   = document.getElementById('login-pass').value;
+  const msg     = document.getElementById('login-msg');
+  const btn     = document.getElementById('btn-login');
+  if (!usuario || !senha) { mostrarMsg(msg, 'Preencha usuário e senha.', 'err'); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const res = await api('autenticar', { usuario, senha });
+    if (!res?.ok) { mostrarMsg(msg, res?.mensagem || 'Usuário ou senha inválidos.', 'err'); return; }
+    USUARIO = res.usuario;
+    sessionStorage.setItem('usuario', JSON.stringify(USUARIO));
+    entrarNoApp();
+  } catch(e) { mostrarMsg(msg, 'Erro de conexão: ' + e.message, 'err'); }
+  finally { btn.disabled = false; btn.innerHTML = 'Entrar'; }
+}
+
+function entrarNoApp() {
+  document.getElementById('page-login').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('header-user').textContent = USUARIO.nome || USUARIO.usuario;
+  voltarMenu();
+}
+
+function logout() {
+  if (!confirm('Deseja sair?')) return;
+  USUARIO = null; sessionStorage.clear(); _dadosRel = {};
+  document.getElementById('page-login').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-msg').className = 'msg';
+}
+
+// ══════════════════════════════════════════════════════
+//  NAVEGAÇÃO
+// ══════════════════════════════════════════════════════
+function abrirRelatorio(id) {
+  document.getElementById('menu-relatorios').style.display = 'none';
+  document.querySelectorAll('.rel-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('rel-' + id).classList.add('active');
+  document.getElementById('header-title').textContent = {
+    'movimentos':       '🔄 Movimentos',
+    'estoque-insumos':  '📦 Estoque Insumos',
+    'estoque-pa':       '🏭 Estoque PA',
+    'ops':              '📋 OPs',
+    'abc':              '📊 Curva ABC',
+    'extrato':          '🔍 Extrato',
+  }[id] || 'Relatórios';
+}
+
+function voltarMenu() {
+  document.querySelectorAll('.rel-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('menu-relatorios').style.display = 'block';
+  document.getElementById('header-title').textContent = 'Relatórios de Gestão';
+}
+
+// ══════════════════════════════════════════════════════
+//  REL 1: MOVIMENTOS
+// ══════════════════════════════════════════════════════
+async function gerarMovimentos() {
+  setLoading('mov-table-body', 'mov-count', 'Carregando movimentos...');
+  try {
+    const de      = document.getElementById('mov-de').value;
+    const ate     = document.getElementById('mov-ate').value;
+    const tipo    = document.getElementById('mov-tipo').value;
+    const origem  = document.getElementById('mov-origem').value;
+    const produto = document.getElementById('mov-produto').value.trim().toLowerCase();
+    const usuario = document.getElementById('mov-usuario').value.trim().toLowerCase();
+    const op      = document.getElementById('mov-op').value.trim();
+
+    const [resIns, resPA] = await Promise.all([
+      origem !== 'pa'     ? api('listarMovimentos')   : Promise.resolve([]),
+      origem !== 'insumo' ? api('listarMovimentosPA') : Promise.resolve([]),
+    ]);
+
+    let movs = [
+      ...(Array.isArray(resIns) ? resIns.map(m => ({...m, _origem:'Insumo'})) : []),
+      ...(Array.isArray(resPA)  ? resPA .map(m => ({...m, _origem:'PA'}))     : []),
+    ];
+
+    // Filtros
+    if (de)      movs = movs.filter(m => m.data >= de.split('-').reverse().join('/') || m.data?.substring(0,10) >= de);
+    if (ate)     movs = movs.filter(m => m.data <= ate.split('-').reverse().join('/') || m.data?.substring(0,10) <= ate);
+    if (tipo)    movs = movs.filter(m => m.tipo?.toUpperCase() === tipo);
+    if (produto) movs = movs.filter(m => m.codigo?.toLowerCase().includes(produto) || m.descricao?.toLowerCase().includes(produto));
+    if (usuario) movs = movs.filter(m => m.usuario?.toLowerCase().includes(usuario));
+    if (op)      movs = movs.filter(m => String(m.op||'').includes(op));
+
+    // Ordena por data desc
+    movs.sort((a,b) => String(b.data||'').localeCompare(String(a.data||'')));
+
+    _dadosRel.movimentos = movs;
+    renderMovimentos(movs);
+  } catch(e) {
+    document.getElementById('mov-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+    document.getElementById('mov-count').textContent = 'Erro';
+  }
+}
+
+function renderMovimentos(movs) {
+  document.getElementById('mov-count').innerHTML = `<strong>${fmtNum(movs.length)}</strong> registros encontrados`;
+  if (!movs.length) {
+    document.getElementById('mov-table-body').innerHTML = '<div class="empty"><div class="empty-icon">🔄</div><div class="empty-text">Nenhum movimento encontrado com esses filtros.</div></div>';
+    return;
+  }
+  document.getElementById('mov-table-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Data/Hora</th><th>Origem</th><th>Tipo</th><th>Código</th>
+        <th>Descrição</th><th class="num">Qtde</th><th>OP</th>
+        <th>Usuário</th><th>Obs</th>
+      </tr></thead>
+      <tbody>${movs.map(m => `<tr>
+        <td class="mono">${esc(m.data||'')}</td>
+        <td>${esc(m._origem||'')}</td>
+        <td><span class="badge-${(m.tipo||'').toLowerCase()==='entrada'?'entrada':'saida'}">${esc(m.tipo||'')}</span></td>
+        <td class="mono">${esc(m.codigo||'')}</td>
+        <td>${esc(m.descricao||'')}</td>
+        <td class="num ${(m.tipo||'').toUpperCase()==='ENTRADA'?'pos':'neg'}">${fmtNum(m.qtde)}</td>
+        <td class="mono">${esc(m.op||'')}</td>
+        <td>${esc(m.usuario||'')}</td>
+        <td style="color:#4a6a6a;font-size:11px">${esc(m.obs||'')}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  REL 2: ESTOQUE INSUMOS
+// ══════════════════════════════════════════════════════
+async function gerarEstoqueInsumos() {
+  setLoading('ei-table-body', 'ei-count', 'Carregando estoque...');
+  try {
+    const res = await api('listarCadastro', { filtroSituacao: 'ATIVO' });
+    const itens = Array.isArray(res) ? res : [];
+    _dadosRel['estoque-insumos'] = itens;
+    // Popula filtro de tipo
+    const tipos = [...new Set(itens.map(i => i.tipo).filter(Boolean))].sort();
+    const sel = document.getElementById('ei-tipo');
+    sel.innerHTML = '<option value="">Todos</option>' + tipos.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    filtrarEstoqueInsumos();
+  } catch(e) {
+    document.getElementById('ei-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+  }
+}
+
+function filtrarEstoqueInsumos() {
+  const dados  = _dadosRel['estoque-insumos'] || [];
+  const busca  = document.getElementById('ei-busca').value.trim().toLowerCase();
+  const status = document.getElementById('ei-status').value;
+  const tipo   = document.getElementById('ei-tipo').value;
+  const termos = busca.split(/\s+/).filter(Boolean);
+
+  let filtrado = dados.filter(i => {
+    if (termos.length && !termos.every(t => i.codigo?.toLowerCase().includes(t) || i.descricao?.toLowerCase().includes(t))) return false;
+    if (tipo && i.tipo !== tipo) return false;
+    if (status === 'zerado' && i.estoqueAtual > 0) return false;
+    if (status === 'critico' && (i.estoqueAtual > (i.estoqueMin||0) || i.estoqueAtual <= 0)) return false;
+    if (status === 'ok' && i.estoqueAtual <= (i.estoqueMin||0)) return false;
+    return true;
+  });
+
+  document.getElementById('ei-count').innerHTML = `<strong>${fmtNum(filtrado.length)}</strong> de ${fmtNum(dados.length)} insumos`;
+  if (!filtrado.length) {
+    document.getElementById('ei-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">Nenhum insumo encontrado.</div></div>';
+    return;
+  }
+  document.getElementById('ei-table-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Código</th><th>Descrição</th><th>Tipo</th>
+        <th class="num">Saldo</th><th class="num">Mínimo</th>
+        <th>Endereço</th><th>Status</th>
+      </tr></thead>
+      <tbody>${filtrado.map(i => {
+        const status = i.estoqueAtual <= 0 ? ['zerado','badge-critico'] :
+                       i.estoqueAtual <= (i.estoqueMin||0) ? ['crítico','badge-baixo'] : ['ok','badge-ok'];
+        return `<tr>
+          <td class="mono">${esc(i.codigo)}</td>
+          <td>${esc(i.descricao)}</td>
+          <td style="color:#4a6a6a;font-size:11px">${esc(i.tipo||'')}</td>
+          <td class="num ${i.estoqueAtual<=0?'neg':i.estoqueAtual<=(i.estoqueMin||0)?'warn':'pos'}">${fmtNum(i.estoqueAtual)}</td>
+          <td class="num">${fmtNum(i.estoqueMin||0)}</td>
+          <td class="mono" style="font-size:11px">${esc(i.endereco||'—')}</td>
+          <td><span class="${status[1]}">${status[0]}</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  REL 3: ESTOQUE PA
+// ══════════════════════════════════════════════════════
+async function gerarEstoquePA() {
+  setLoading('ep-table-body', 'ep-count', 'Carregando estoque PA...');
+  try {
+    const res = await api('listarCadastroPA', { filtroSituacao: 'ATIVO' });
+    const itens = Array.isArray(res) ? res : [];
+    _dadosRel['estoque-pa'] = itens;
+    const familias = [...new Set(itens.map(i => i.familia).filter(Boolean))].sort();
+    const sel = document.getElementById('ep-familia');
+    sel.innerHTML = '<option value="">Todas</option>' + familias.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+    filtrarEstoquePA();
+  } catch(e) {
+    document.getElementById('ep-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+  }
+}
+
+function filtrarEstoquePA() {
+  const dados   = _dadosRel['estoque-pa'] || [];
+  const busca   = document.getElementById('ep-busca').value.trim().toLowerCase();
+  const status  = document.getElementById('ep-status').value;
+  const familia = document.getElementById('ep-familia').value;
+  const termos  = busca.split(/\s+/).filter(Boolean);
+
+  let filtrado = dados.filter(i => {
+    if (termos.length && !termos.every(t => i.codigo?.toLowerCase().includes(t) || i.descricao?.toLowerCase().includes(t))) return false;
+    if (familia && i.familia !== familia) return false;
+    if (status === 'zerado'  && i.estoqueAtual > 0) return false;
+    if (status === 'critico' && (i.estoqueAtual > (i.estoqueMin||0) || i.estoqueAtual <= 0)) return false;
+    if (status === 'ok'      && i.estoqueAtual <= (i.estoqueMin||0)) return false;
+    return true;
+  });
+
+  document.getElementById('ep-count').innerHTML = `<strong>${fmtNum(filtrado.length)}</strong> de ${fmtNum(dados.length)} produtos`;
+  if (!filtrado.length) {
+    document.getElementById('ep-table-body').innerHTML = '<div class="empty"><div class="empty-icon">🏭</div><div class="empty-text">Nenhum PA encontrado.</div></div>';
+    return;
+  }
+  document.getElementById('ep-table-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Código</th><th>Descrição</th><th>Família</th>
+        <th class="num">Saldo</th><th class="num">Mínimo</th>
+        <th>Endereço</th><th>Status</th>
+      </tr></thead>
+      <tbody>${filtrado.map(i => {
+        const status = i.estoqueAtual <= 0 ? ['zerado','badge-critico'] :
+                       i.estoqueAtual <= (i.estoqueMin||0) ? ['crítico','badge-baixo'] : ['ok','badge-ok'];
+        return `<tr>
+          <td class="mono">${esc(i.codigo)}</td>
+          <td>${esc(i.descricao)}</td>
+          <td style="color:#4a6a6a;font-size:11px">${esc(i.familia||'')}</td>
+          <td class="num ${i.estoqueAtual<=0?'neg':i.estoqueAtual<=(i.estoqueMin||0)?'warn':'pos'}">${fmtNum(i.estoqueAtual)}</td>
+          <td class="num">${fmtNum(i.estoqueMin||0)}</td>
+          <td class="mono" style="font-size:11px">${esc(i.endereco||'—')}</td>
+          <td><span class="${status[1]}">${status[0]}</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  REL 4: OPS
+// ══════════════════════════════════════════════════════
+async function gerarOPs() {
+  setLoading('ops-table-body', 'ops-count', 'Carregando OPs...');
+  try {
+    const res = await api('listarOPS');
+    let ops = Array.isArray(res) ? res : [];
+
+    const de      = document.getElementById('ops-de').value;
+    const ate     = document.getElementById('ops-ate').value;
+    const produto = document.getElementById('ops-produto').value.trim().toLowerCase();
+    const pedido  = document.getElementById('ops-pedido').value.trim();
+    const origem  = document.getElementById('ops-origem').value;
+
+    if (produto) ops = ops.filter(o => o.codigo?.toLowerCase().includes(produto) || o.descricao?.toLowerCase().includes(produto));
+    if (pedido)  ops = ops.filter(o => String(o.pedido||'').includes(pedido));
+    if (origem)  ops = ops.filter(o => o.origem?.toUpperCase() === origem.toUpperCase());
+
+    _dadosRel.ops = ops;
+    document.getElementById('ops-count').innerHTML = `<strong>${fmtNum(ops.length)}</strong> OPs encontradas`;
+    if (!ops.length) {
+      document.getElementById('ops-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma OP encontrada.</div></div>';
+      return;
+    }
+    document.getElementById('ops-table-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>OP</th><th>Pedido</th><th>Código</th><th>Descrição</th>
+          <th class="num">Qtde</th><th>Origem</th><th>Estado</th><th>OBS</th><th>SILK</th>
+        </tr></thead>
+        <tbody>${ops.map(o => `<tr>
+          <td class="mono">${esc(o.op||'')}</td>
+          <td class="mono">${esc(o.pedido||'')}</td>
+          <td class="mono">${esc(o.codigo||'')}</td>
+          <td>${esc(o.descricao||'')}</td>
+          <td class="num">${fmtNum(o.qtde)}</td>
+          <td><span class="badge-${o.isPA?'entrada':'saida'}" style="background:${o.isPA?'rgba(15,110,86,.12)':'rgba(26,92,90,.12)'};color:${o.isPA?'#0f6e56':'#1a5c5a'}">${esc(o.origem||'—')}</span></td>
+          <td><span class="${o.estado==='PAGO'?'badge-ok':o.estado==='EM_BAIXA'?'badge-b':'badge-critico'}">${esc(o.estado||'')}</span></td>
+          <td style="font-size:11px;color:#4a6a6a">${esc(o.obs||'')}</td>
+          <td style="font-size:11px;color:#4a6a6a">${esc(o.silk||'')}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('ops-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+    document.getElementById('ops-count').textContent = 'Erro';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  REL 5: CURVA ABC
+// ══════════════════════════════════════════════════════
+async function gerarABC() {
+  setLoading('abc-table-body', 'abc-count', 'Calculando curva ABC...');
+  document.getElementById('abc-resumo').style.display = 'none';
+  try {
+    const origem  = document.getElementById('abc-origem').value;
+    const metrica = document.getElementById('abc-metrica').value;
+
+    const [resIns, resPA] = await Promise.all([
+      origem !== 'pa'     ? api('listarMovimentos')   : Promise.resolve([]),
+      origem !== 'insumo' ? api('listarMovimentosPA') : Promise.resolve([]),
+    ]);
+
+    const movs = [
+      ...(Array.isArray(resIns) ? resIns.map(m => ({...m, _origem:'Insumo'})) : []),
+      ...(Array.isArray(resPA)  ? resPA .map(m => ({...m, _origem:'PA'}))     : []),
+    ].filter(m => m.tipo?.toUpperCase() === 'SAIDA');
+
+    // Agrupa por produto
+    const mapa = {};
+    for (const m of movs) {
+      const k = m.codigo;
+      if (!k) continue;
+      if (!mapa[k]) mapa[k] = { codigo:k, descricao:m.descricao||'', _origem:m._origem, totalQtde:0, totalMov:0 };
+      mapa[k].totalQtde += Number(m.qtde||0);
+      mapa[k].totalMov  += 1;
+    }
+
+    let itens = Object.values(mapa);
+    itens.sort((a,b) => (metrica === 'qtde' ? b.totalQtde - a.totalQtde : b.totalMov - a.totalMov));
+
+    // Classifica ABC
+    const totalGeral = itens.reduce((s,i) => s + (metrica==='qtde'?i.totalQtde:i.totalMov), 0);
+    let acum = 0;
+    itens = itens.map((i,idx) => {
+      const val = metrica==='qtde'?i.totalQtde:i.totalMov;
+      acum += val;
+      const pct = totalGeral > 0 ? (acum/totalGeral)*100 : 0;
+      return { ...i, rank:idx+1, valor:val, pctAcum:pct, classe: pct<=80?'A':pct<=95?'B':'C' };
+    });
+
+    _dadosRel.abc = itens;
+    const qtdA = itens.filter(i=>i.classe==='A').length;
+    const qtdB = itens.filter(i=>i.classe==='B').length;
+    const qtdC = itens.filter(i=>i.classe==='C').length;
+    document.getElementById('abc-qtd-a').textContent = qtdA;
+    document.getElementById('abc-qtd-b').textContent = qtdB;
+    document.getElementById('abc-qtd-c').textContent = qtdC;
+    document.getElementById('abc-resumo').style.display = 'grid';
+    document.getElementById('abc-count').innerHTML = `<strong>${fmtNum(itens.length)}</strong> produtos analisados`;
+
+    document.getElementById('abc-table-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>#</th><th>Classe</th><th>Código</th><th>Descrição</th>
+          <th>Origem</th><th class="num">${metrica==='qtde'?'Qtde saída':'Nº movimentos'}</th>
+          <th class="num">% Acumulado</th>
+        </tr></thead>
+        <tbody>${itens.map(i => `<tr>
+          <td class="mono" style="color:#4a6a6a">${i.rank}</td>
+          <td><span class="badge-${i.classe.toLowerCase()}">${i.classe}</span></td>
+          <td class="mono">${esc(i.codigo)}</td>
+          <td>${esc(i.descricao)}</td>
+          <td style="font-size:11px;color:#4a6a6a">${esc(i._origem||'')}</td>
+          <td class="num">${fmtNum(i.valor)}</td>
+          <td class="num">${i.pctAcum.toFixed(1)}%</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('abc-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+    document.getElementById('abc-count').textContent = 'Erro';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  REL 6: EXTRATO
+// ══════════════════════════════════════════════════════
+async function gerarExtrato() {
+  const codigo = document.getElementById('ext-codigo').value.trim().toUpperCase();
+  const tipo   = document.getElementById('ext-tipo').value;
+  if (!codigo) { toast('Informe o código do produto.', 'warn'); return; }
+  setLoading('ext-table-body', 'ext-count', 'Carregando extrato...');
+  document.getElementById('ext-resumo').style.display = 'none';
+  try {
+    const res = await api(tipo === 'pa' ? 'listarMovimentosPA' : 'listarMovimentos');
+    let movs = (Array.isArray(res) ? res : []).filter(m => m.codigo?.toUpperCase() === codigo);
+
+    const de  = document.getElementById('ext-de').value;
+    const ate = document.getElementById('ext-ate').value;
+    if (de)  movs = movs.filter(m => (m.data||'') >= de.split('-').reverse().join('/'));
+    if (ate) movs = movs.filter(m => (m.data||'') <= ate.split('-').reverse().join('/'));
+
+    movs.sort((a,b) => String(a.data||'').localeCompare(String(b.data||'')));
+
+    // Saldo progressivo
+    let saldo = 0;
+    const movsSaldo = movs.map(m => {
+      const q = Number(m.qtde||0);
+      saldo += m.tipo?.toUpperCase() === 'ENTRADA' ? q : -q;
+      return { ...m, saldoApos: saldo };
+    });
+
+    const totalEnt  = movs.filter(m=>m.tipo?.toUpperCase()==='ENTRADA').reduce((s,m)=>s+Number(m.qtde||0),0);
+    const totalSai  = movs.filter(m=>m.tipo?.toUpperCase()==='SAIDA').reduce((s,m)=>s+Number(m.qtde||0),0);
+
+    document.getElementById('ext-saldo-atual').textContent = fmtNum(saldo);
+    document.getElementById('ext-total-entrada').textContent = fmtNum(totalEnt);
+    document.getElementById('ext-total-saida').textContent = fmtNum(totalSai);
+    document.getElementById('ext-total-mov').textContent = fmtNum(movs.length);
+    document.getElementById('ext-resumo').style.display = 'grid';
+
+    _dadosRel.extrato = movsSaldo;
+    document.getElementById('ext-count').innerHTML = `<strong>${fmtNum(movsSaldo.length)}</strong> movimentos de <strong>${esc(codigo)}</strong>`;
+
+    if (!movsSaldo.length) {
+      document.getElementById('ext-table-body').innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum movimento encontrado para este produto.</div></div>';
+      return;
+    }
+    document.getElementById('ext-table-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Data/Hora</th><th>Tipo</th><th class="num">Qtde</th>
+          <th class="num">Saldo após</th><th>OP</th><th>Usuário</th><th>Obs</th>
+        </tr></thead>
+        <tbody>${movsSaldo.map(m => `<tr>
+          <td class="mono">${esc(m.data||'')}</td>
+          <td><span class="badge-${m.tipo?.toLowerCase()==='entrada'?'entrada':'saida'}">${esc(m.tipo||'')}</span></td>
+          <td class="num ${m.tipo?.toUpperCase()==='ENTRADA'?'pos':'neg'}">${fmtNum(m.qtde)}</td>
+          <td class="num" style="font-weight:700">${fmtNum(m.saldoApos)}</td>
+          <td class="mono">${esc(m.op||'')}</td>
+          <td>${esc(m.usuario||'')}</td>
+          <td style="font-size:11px;color:#4a6a6a">${esc(m.obs||'')}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('ext-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+    document.getElementById('ext-count').textContent = 'Erro';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  EXPORTAR EXCEL — via SheetJS CDN
+// ══════════════════════════════════════════════════════
+function exportarExcel(rel) {
+  const dados = _dadosRel[rel];
+  if (!dados?.length) { toast('Gere o relatório antes de exportar.', 'warn'); return; }
+
+  const mapeamentos = {
+    movimentos:        ['data','_origem','tipo','codigo','descricao','qtde','op','usuario','obs'],
+    'estoque-insumos': ['codigo','descricao','tipo','estoqueAtual','estoqueMin','endereco'],
+    'estoque-pa':      ['codigo','descricao','familia','estoqueAtual','estoqueMin','endereco'],
+    ops:               ['op','pedido','codigo','descricao','qtde','origem','estado','obs','silk'],
+    abc:               ['rank','classe','codigo','descricao','_origem','valor','pctAcum'],
+    extrato:           ['data','tipo','qtde','saldoApos','op','usuario','obs'],
+  };
+
+  const cols = mapeamentos[rel] || Object.keys(dados[0]);
+  const ws_data = [cols, ...dados.map(r => cols.map(c => r[c] ?? ''))];
+
+  // Usa XLSX via CDN
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  script.onload = () => {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    XLSX.utils.book_append_sheet(wb, ws, rel);
+    XLSX.writeFile(wb, `futura_${rel}_${new Date().toISOString().substring(0,10)}.xlsx`);
+    toast('✔ Excel exportado!');
+  };
+  script.onerror = () => toast('Erro ao carregar biblioteca de exportação.', 'err');
+  if (window.XLSX) { script.onload(); } else { document.head.appendChild(script); }
+}
+
+// ══════════════════════════════════════════════════════
+//  PWA + INIT
+// ══════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = sessionStorage.getItem('usuario');
+  if (saved) {
+    try { USUARIO = JSON.parse(saved); entrarNoApp(); }
+    catch { sessionStorage.clear(); }
+  }
+  setTimeout(() => document.getElementById('loading-overlay').classList.add('hidden'), 400);
+});
+</script>
+</body>
+</html>
