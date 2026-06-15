@@ -666,6 +666,21 @@ function toast(msg, tipo = 'ok', dur = 3500) {
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmtNum(n) { return Number(n||0).toLocaleString('pt-BR'); }
 function fmtData(s) { return s ? String(s).substring(0,10).split('-').reverse().join('/') : ''; }
+
+// Converte "dd/MM/yyyy HH:mm" ou "dd/MM/yyyy" → "yyyy-MM-dd" (só data, para filtros)
+function _toISO(dataStr) {
+  const [dataPart] = String(dataStr||'').split(' ');
+  const [dd,mm,yyyy] = dataPart.split('/');
+  if (!dd || !mm || !yyyy) return '';
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Converte "dd/MM/yyyy HH:mm" → "yyyy-MM-dd HH:mm" (com hora, para ordenação)
+function _toISOCompleto(dataStr) {
+  const [dataPart, horaPart=''] = String(dataStr||'').split(' ');
+  const iso = _toISO(dataPart);
+  return iso ? `${iso} ${horaPart}` : '';
+}
 function mostrarMsg(el, txt, tipo) { el.textContent = txt; el.className = 'msg show ' + tipo; }
 
 function setLoading(tbodyId, countId, msg = 'Carregando...') {
@@ -766,16 +781,16 @@ async function gerarMovimentos() {
       ...(Array.isArray(resPA)  ? resPA .map(m => ({...m, _origem:'PA'}))     : []),
     ];
 
-    // Filtros
-    if (de)      movs = movs.filter(m => m.data >= de.split('-').reverse().join('/') || m.data?.substring(0,10) >= de);
-    if (ate)     movs = movs.filter(m => m.data <= ate.split('-').reverse().join('/') || m.data?.substring(0,10) <= ate);
+    // Filtros — converte "dd/MM/yyyy HH:mm" para comparação cronológica correta
+    if (de)      movs = movs.filter(m => _toISO(m.data) >= de);
+    if (ate)     movs = movs.filter(m => _toISO(m.data) <= ate);
     if (tipo)    movs = movs.filter(m => m.tipo?.toUpperCase() === tipo);
     if (produto) movs = movs.filter(m => m.codigo?.toLowerCase().includes(produto) || m.descricao?.toLowerCase().includes(produto));
     if (usuario) movs = movs.filter(m => m.usuario?.toLowerCase().includes(usuario));
     if (op)      movs = movs.filter(m => String(m.op||'').includes(op));
 
-    // Ordena por data desc
-    movs.sort((a,b) => String(b.data||'').localeCompare(String(a.data||'')));
+    // Ordena por data desc (cronológico, não lexicográfico)
+    movs.sort((a,b) => _toISOCompleto(b.data).localeCompare(_toISOCompleto(a.data)));
 
     _dadosRel.movimentos = movs;
     renderMovimentos(movs);
@@ -1046,6 +1061,21 @@ async function gerarOPs() {
     if (pedido)  ops = ops.filter(o => String(o.pedido||'').includes(pedido));
     if (origem)  ops = ops.filter(o => o.origem?.toUpperCase() === origem.toUpperCase());
 
+    // Filtro de data: aplica só em OPs PAGAS (têm dataPagamento).
+    // OPs ainda abertas (sem data) sempre aparecem, pois ainda não foram pagas.
+    if (de || ate) {
+      const deISO  = de  ? de  : null;  // yyyy-mm-dd
+      const ateISO = ate ? ate : null;
+      ops = ops.filter(o => {
+        if (!o.dataPagamento) return true; // OP aberta — sempre mostra
+        const [dd,mm,yyyy] = o.dataPagamento.split('/');
+        const iso = `${yyyy}-${mm}-${dd}`;
+        if (deISO  && iso < deISO)  return false;
+        if (ateISO && iso > ateISO) return false;
+        return true;
+      });
+    }
+
     _dadosRel.ops = ops;
     document.getElementById('ops-count').innerHTML = `<strong>${fmtNum(ops.length)}</strong> OPs encontradas`;
     if (!ops.length) {
@@ -1177,12 +1207,14 @@ async function gerarExtrato() {
     const res = await api(tipo === 'pa' ? 'listarMovimentosPA' : 'listarMovimentos');
     let movs = (Array.isArray(res) ? res : []).filter(m => m.codigo?.toUpperCase() === codigo);
 
-    const de  = document.getElementById('ext-de').value;
-    const ate = document.getElementById('ext-ate').value;
-    if (de)  movs = movs.filter(m => (m.data||'') >= de.split('-').reverse().join('/'));
-    if (ate) movs = movs.filter(m => (m.data||'') <= ate.split('-').reverse().join('/'));
+    const de  = document.getElementById('ext-de').value;   // yyyy-mm-dd
+    const ate = document.getElementById('ext-ate').value;  // yyyy-mm-dd
 
-    movs.sort((a,b) => String(a.data||'').localeCompare(String(b.data||'')));
+    if (de)  movs = movs.filter(m => _toISO(m.data) >= de);
+    if (ate) movs = movs.filter(m => _toISO(m.data) <= ate);
+
+    // Ordena cronologicamente (não lexicograficamente)
+    movs.sort((a,b) => _toISOCompleto(a.data).localeCompare(_toISOCompleto(b.data)));
 
     // Saldo progressivo
     let saldo = 0;
@@ -1449,7 +1481,7 @@ async function gerarListaPA() {
       }
     }
 
-    // Calcula o que falta
+    // Calcula o que falta — mantém TODOS os itens, ordena com pendências primeiro
     const resultado = Object.values(mapa)
       .map(i => ({
         ...i,
@@ -1458,8 +1490,12 @@ async function gerarListaPA() {
         suficiente:    i.saldoAtual >= i.necessario,
         origem:        [...new Set(i.origem)].join(', '),
       }))
-      .filter(i => i.faltaComprar > 0) // só o que precisa comprar
-      .sort((a,b) => b.faltaComprar - a.faltaComprar);
+      .sort((a,b) => {
+        // Itens com falta primeiro (ordenados por maior falta), depois OKs
+        if (a.faltaComprar > 0 && b.faltaComprar === 0) return -1;
+        if (a.faltaComprar === 0 && b.faltaComprar > 0) return 1;
+        return b.faltaComprar - a.faltaComprar;
+      });
 
     _dadosRel['compras'] = resultado;
     _renderListaCompras(resultado, 'pa');
@@ -1473,11 +1509,17 @@ async function gerarListaPA() {
 function _renderListaCompras(dados, modo = 'criticos') {
   const total = dados.length;
   const totalSugerido = dados.reduce((s,i) => s + (i.sugerido||i.faltaComprar||0), 0);
-  document.getElementById('compras-count').innerHTML = `<strong>${fmtNum(total)}</strong> item(ns) para comprar`;
-  document.getElementById('compras-total').textContent = total ? `Total de unidades: ${fmtNum(totalSugerido)}` : '';
+  const totalComprar  = dados.filter(i => (i.sugerido||i.faltaComprar||0) > 0).length;
+
+  if (modo === 'pa') {
+    document.getElementById('compras-count').innerHTML = `<strong>${fmtNum(total)}</strong> insumo(s) na estrutura · <strong style="color:#d97706">${fmtNum(totalComprar)}</strong> precisam comprar`;
+  } else {
+    document.getElementById('compras-count').innerHTML = `<strong>${fmtNum(total)}</strong> item(ns) para comprar`;
+  }
+  document.getElementById('compras-total').textContent = totalSugerido ? `Total de unidades a comprar: ${fmtNum(totalSugerido)}` : '';
 
   if (!dados.length) {
-    document.getElementById('compras-table-body').innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Nenhum item para comprar com esses critérios.</div></div>';
+    document.getElementById('compras-table-body').innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Nenhum item encontrado.</div></div>';
     return;
   }
 
@@ -1491,15 +1533,17 @@ function _renderListaCompras(dados, modo = 'criticos') {
           ${_thSort('compras','saldoAtual','Saldo Atual','num')}
           ${_thSort('compras','temNoEstoque','Tem no Estoque','num')}
           ${_thSort('compras','faltaComprar','⬇ Falta Comprar','num')}
+          <th>Status</th>
           <th>PAs que pedem</th>
         </tr></thead>
-        <tbody>${dados.map(i => `<tr>
+        <tbody>${dados.map(i => `<tr ${i.faltaComprar<=0?'style="opacity:.6"':''}>
           <td class="mono">${esc(i.codigo)}</td>
           <td>${esc(i.descricao)}</td>
           <td class="num">${fmtNum(i.necessario)}</td>
           <td class="num ${i.saldoAtual<=0?'neg':'pos'}">${fmtNum(i.saldoAtual)}</td>
           <td class="num">${fmtNum(i.temNoEstoque)}</td>
-          <td class="num" style="font-weight:800;color:#d97706;font-size:14px">${fmtNum(i.faltaComprar)}</td>
+          <td class="num" style="font-weight:800;${i.faltaComprar>0?'color:#d97706;font-size:14px':'color:#9ca3af'}">${i.faltaComprar>0?fmtNum(i.faltaComprar):'—'}</td>
+          <td>${i.faltaComprar>0 ? '<span class="badge-critico">comprar</span>' : '<span class="badge-ok">ok</span>'}</td>
           <td style="font-size:11px;color:#4a6a6a">${esc(i.origem||'')}</td>
         </tr>`).join('')}</tbody>
       </table>`;
