@@ -241,6 +241,13 @@
           <div><span class="rel-card-badge" style="background:rgba(217,119,6,.15);color:#b45309">Compras</span></div>
         </div>
 
+        <div class="rel-card" onclick="abrirRelatorio('fechamento')" style="border-color:rgba(124,58,237,.3);background:rgba(124,58,237,.03)">
+          <div class="rel-card-icon">📅</div>
+          <div class="rel-card-title">Fechamento Mensal M5/M3</div>
+          <div class="rel-card-desc">Calcula o fechamento mensal de Insumos (M5) e Produtos Acabados (M3) com saldo inicial, entradas, saídas e arquiva no histórico.</div>
+          <div><span class="rel-card-badge" style="background:rgba(124,58,237,.15);color:#6d28d9">Fechamento</span></div>
+        </div>
+
       </div>
     </div>
 
@@ -619,6 +626,56 @@
       </div>
     </div>
 
+    <!-- ══ RELATÓRIO 8: FECHAMENTO MENSAL M5/M3 ══ -->
+    <div id="rel-fechamento" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">📅 Fechamento Mensal</div>
+        <div class="rel-actions">
+          <button class="btn btn-excel btn-sm" onclick="exportarExcel('fechamento')">⬇ Excel</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+
+      <!-- Seletor M5 / M3 -->
+      <div style="display:flex;gap:10px;margin-bottom:4px">
+        <button id="tab-m5" class="btn btn-primary btn-sm" onclick="setModoFechamento('m5')" style="flex:1">📦 M5 — Insumos</button>
+        <button id="tab-m3" class="btn btn-secondary btn-sm" onclick="setModoFechamento('m3')" style="flex:1">🏭 M3 — Produtos Acabados</button>
+      </div>
+
+      <div class="filtros-bar">
+        <div class="filtro-group">
+          <label>Mês de referência</label>
+          <input type="month" id="fech-mes">
+        </div>
+        <div class="filtro-group" id="fech-taxa-group">
+          <label>Taxa do dólar (R$)</label>
+          <input type="number" id="fech-taxa" step="0.0001" placeholder="Ex: 4.99">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="calcularFechamento()" style="margin-top:20px">🔍 Calcular</button>
+      </div>
+
+      <div id="fech-info-mes" style="display:none;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--text-muted)"></div>
+
+      <div class="table-wrap">
+        <div class="table-info">
+          <span id="fech-count">Selecione o mês e clique em Calcular</span>
+          <span id="fech-total" style="font-weight:700;color:#6d28d9"></span>
+        </div>
+        <div id="fech-table-body">
+          <div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Selecione o mês de referência e clique em Calcular</div></div>
+        </div>
+      </div>
+
+      <div id="fech-confirmar-bar" style="display:none;background:#fff;border:1.5px solid rgba(124,58,237,.3);border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;font-size:13px;color:var(--text-muted)">
+          Revise os valores acima com atenção. Ao confirmar, estas linhas serão gravadas permanentemente no histórico
+          (<strong id="fech-aba-destino">M5_Historico</strong>), substituindo qualquer fechamento anterior do mesmo mês.
+        </div>
+        <button class="btn btn-sm" style="background:#6d28d9;color:#fff" onclick="arquivarFechamento()">✔ Confirmar e Arquivar</button>
+      </div>
+    </div>
+
   </div><!-- /main -->
 
 <script src="config.js"></script>
@@ -748,6 +805,8 @@ function abrirRelatorio(id) {
     'ops':              '📋 OPs',
     'abc':              '📊 Curva ABC',
     'extrato':          '🔍 Extrato',
+    'compras':          '🛒 Lista de Compras',
+    'fechamento':       '📅 Fechamento Mensal',
   }[id] || 'Relatórios';
 }
 
@@ -832,6 +891,7 @@ function sortRel(rel, col) {
   if (rel === 'ops')             _renderOpsRows(dados);
   if (rel === 'abc')             _renderAbcRows(dados);
   if (rel === 'extrato')         _renderExtratoRows(dados);
+  if (rel === 'fechamento')      _renderFechamento(dados);
 }
 
 function _thSort(rel, col, label, cls='') {
@@ -1282,6 +1342,12 @@ function exportarExcel(rel) {
     ops:               ['op','pedido','codigo','descricao','qtde','origem','estado','obs','silk'],
     abc:               ['rank','classe','codigo','descricao','_origem','valor','pctAcum'],
     extrato:           ['data','tipo','qtde','saldoApos','op','usuario','obs'],
+    compras:           _modoCompras === 'pa'
+                          ? ['codigo','descricao','necessario','saldoAtual','temNoEstoque','faltaComprar','origem']
+                          : ['criterio','codigo','descricao','tipo','saldoAtual','estoqueMin','estoqueSeg','sugerido','endereco'],
+    fechamento:        _modoFechamento === 'm5'
+                          ? ['codigo','descricao','um','portaria','ncm','destaque','nve','usdUnit','usdTax','rsUnit','inicial','entrada','saida','saldo','rsTotal','mesReferencia']
+                          : ['codigo','descricao','projeto','ncm','endereco','precoUnit','inicial','entrada','saida','saldo','precoTotal','mesReferencia'],
   };
 
   const cols = mapeamentos[rel] || Object.keys(dados[0]);
@@ -1573,6 +1639,164 @@ function _renderListaCompras(dados, modo = 'criticos') {
           <td class="mono" style="font-size:11px">${esc(i.endereco||'—')}</td>
         </tr>`).join('')}</tbody>
       </table>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  REL 8: FECHAMENTO MENSAL M5/M3
+// ══════════════════════════════════════════════════════
+let _modoFechamento = 'm5';
+
+function setModoFechamento(modo) {
+  _modoFechamento = modo;
+  document.getElementById('tab-m5').className = 'btn btn-sm ' + (modo==='m5'?'btn-primary':'btn-secondary');
+  document.getElementById('tab-m3').className = 'btn btn-sm ' + (modo==='m3'?'btn-primary':'btn-secondary');
+  document.getElementById('fech-taxa-group').style.display = modo === 'm5' ? 'flex' : 'none';
+  document.getElementById('fech-aba-destino').textContent = modo === 'm5' ? 'M5_Historico' : 'M3_Historico';
+  document.getElementById('fech-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Selecione o mês de referência e clique em Calcular</div></div>';
+  document.getElementById('fech-count').textContent = 'Selecione o mês e clique em Calcular';
+  document.getElementById('fech-total').textContent = '';
+  document.getElementById('fech-info-mes').style.display = 'none';
+  document.getElementById('fech-confirmar-bar').style.display = 'none';
+  _dadosRel['fechamento'] = [];
+}
+
+async function calcularFechamento() {
+  const mesInput = document.getElementById('fech-mes').value; // formato yyyy-MM
+  if (!mesInput) { toast('Selecione o mês de referência.', 'warn'); return; }
+
+  let payload = { mesRef: mesInput };
+  if (_modoFechamento === 'm5') {
+    const taxa = document.getElementById('fech-taxa').value;
+    if (!taxa || Number(taxa) <= 0) { toast('Informe a taxa do dólar do dia.', 'warn'); return; }
+    payload.taxaDolar = Number(taxa);
+  }
+
+  setLoading('fech-table-body', 'fech-count', 'Calculando fechamento mensal...');
+  document.getElementById('fech-confirmar-bar').style.display = 'none';
+  document.getElementById('fech-info-mes').style.display = 'none';
+
+  try {
+    const acao = _modoFechamento === 'm5' ? 'calcularFechamentoM5' : 'calcularFechamentoM3';
+    const res  = await api(acao, payload);
+    if (!res?.ok) { toast(res?.mensagem || 'Erro ao calcular.', 'err', 6000); document.getElementById('fech-count').textContent = 'Erro'; return; }
+
+    const linhas = res.linhas || [];
+    _dadosRel['fechamento'] = linhas;
+
+    document.getElementById('fech-info-mes').style.display = 'block';
+    document.getElementById('fech-info-mes').innerHTML =
+      `Calculando <strong>${esc(res.mesAtual)}</strong> — Estoque Inicial obtido do fechamento de <strong>${esc(res.mesAnterior)}</strong>. ` +
+      (linhas.some(l=>l.inicial===0) ? 'Itens com Inicial = 0 podem não ter fechamento anterior arquivado.' : '');
+
+    _renderFechamento(linhas);
+
+    document.getElementById('fech-confirmar-bar').style.display = linhas.length ? 'flex' : 'none';
+  } catch(e) {
+    document.getElementById('fech-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+    document.getElementById('fech-count').textContent = 'Erro';
+  }
+}
+
+function _renderFechamento(linhas) {
+  document.getElementById('fech-count').innerHTML = `<strong>${fmtNum(linhas.length)}</strong> itens calculados`;
+  const totalGeral = linhas.reduce((s,l) => s + (l.rsTotal||l.precoTotal||0), 0);
+  document.getElementById('fech-total').textContent = totalGeral ? `Total: R$ ${totalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '';
+
+  if (!linhas.length) {
+    document.getElementById('fech-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Nenhum item encontrado.</div></div>';
+    return;
+  }
+
+  if (_modoFechamento === 'm5') {
+    document.getElementById('fech-table-body').innerHTML = `
+      <table>
+        <thead><tr>
+          ${_thSort('fechamento','codigo','Código')}
+          ${_thSort('fechamento','descricao','Descrição')}
+          ${_thSort('fechamento','um','UM')}
+          ${_thSort('fechamento','portaria','Portaria')}
+          ${_thSort('fechamento','ncm','NCM')}
+          ${_thSort('fechamento','usdUnit','U$ Unit','num')}
+          ${_thSort('fechamento','rsUnit','R$ Unit','num')}
+          ${_thSort('fechamento','inicial','Inicial','num')}
+          ${_thSort('fechamento','entrada','Entrada','num')}
+          ${_thSort('fechamento','saida','Saída','num')}
+          ${_thSort('fechamento','saldo','Saldo Fim Mês','num')}
+          ${_thSort('fechamento','rsTotal','R$ Total','num')}
+        </tr></thead>
+        <tbody>${linhas.map(l => `<tr>
+          <td class="mono">${esc(l.codigo)}</td>
+          <td>${esc(l.descricao)}</td>
+          <td style="font-size:11px;color:#4a6a6a">${esc(l.um)}</td>
+          <td class="mono" style="font-size:11px">${esc(l.portaria)}</td>
+          <td class="mono" style="font-size:11px">${esc(l.ncm)}</td>
+          <td class="num">${l.usdUnit.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td class="num">${l.rsUnit.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td class="num">${fmtNum(l.inicial)}</td>
+          <td class="num pos">${fmtNum(l.entrada)}</td>
+          <td class="num neg">${fmtNum(l.saida)}</td>
+          <td class="num" style="font-weight:700">${fmtNum(l.saldo)}</td>
+          <td class="num">${l.rsTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  } else {
+    document.getElementById('fech-table-body').innerHTML = `
+      <table>
+        <thead><tr>
+          ${_thSort('fechamento','codigo','Código')}
+          ${_thSort('fechamento','descricao','Descrição')}
+          ${_thSort('fechamento','projeto','Projeto')}
+          ${_thSort('fechamento','ncm','NCM')}
+          ${_thSort('fechamento','endereco','Endereço')}
+          ${_thSort('fechamento','precoUnit','Preço Unit','num')}
+          ${_thSort('fechamento','inicial','Inicial','num')}
+          ${_thSort('fechamento','entrada','Entrada','num')}
+          ${_thSort('fechamento','saida','Saída','num')}
+          ${_thSort('fechamento','saldo','Saldo Fim Mês','num')}
+          ${_thSort('fechamento','precoTotal','Preço Total','num')}
+        </tr></thead>
+        <tbody>${linhas.map(l => `<tr>
+          <td class="mono">${esc(l.codigo)}</td>
+          <td>${esc(l.descricao)}</td>
+          <td style="font-size:11px;color:#4a6a6a">${esc(l.projeto)}</td>
+          <td class="mono" style="font-size:11px">${esc(l.ncm)}</td>
+          <td class="mono" style="font-size:11px">${esc(l.endereco)}</td>
+          <td class="num">${l.precoUnit.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td class="num">${fmtNum(l.inicial)}</td>
+          <td class="num pos">${fmtNum(l.entrada)}</td>
+          <td class="num neg">${fmtNum(l.saida)}</td>
+          <td class="num" style="font-weight:700">${fmtNum(l.saldo)}</td>
+          <td class="num">${l.precoTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  }
+}
+
+async function arquivarFechamento() {
+  const linhas = _dadosRel['fechamento'];
+  if (!linhas?.length) { toast('Nada para arquivar.', 'warn'); return; }
+  const mesInput = document.getElementById('fech-mes').value;
+  const abaDestino = _modoFechamento === 'm5' ? 'M5_Historico' : 'M3_Historico';
+
+  if (!confirm(`Confirma gravar ${linhas.length} itens em ${abaDestino}?\n\nIsso substitui qualquer fechamento anterior do mesmo mês.`)) return;
+
+  const btn = document.querySelector('#fech-confirmar-bar button');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:14px;height:14px"></span> Arquivando...';
+
+  try {
+    const acao = _modoFechamento === 'm5' ? 'arquivarFechamentoM5' : 'arquivarFechamentoM3';
+    const res  = await api(acao, { linhas, mesRef: mesInput });
+    if (res?.ok) {
+      toast(`✔ ${res.gravados} itens arquivados em ${abaDestino}!`);
+      document.getElementById('fech-confirmar-bar').style.display = 'none';
+    } else {
+      toast(res?.mensagem || 'Erro ao arquivar.', 'err', 6000);
+    }
+  } catch(e) {
+    toast('Erro: ' + e.message, 'err', 6000);
+  } finally {
+    btn.disabled = false; btn.innerHTML = '✔ Confirmar e Arquivar';
   }
 }
 
