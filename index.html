@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
   <style>
     :root {
       --bg:#f0f4f5; --bg-card:#ffffff; --bg-input:#ffffff;
@@ -1994,6 +1995,13 @@ async function arquivarFechamento() {
 // ══════════════════════════════════════════════════════
 //  REL 9: DASHBOARD DE VENDAS
 // ══════════════════════════════════════════════════════
+// Registra o plugin de rótulos de dados globalmente, mas desabilitado por padrão —
+// só o gráfico mensal (que foi desenhado para isso) liga explicitamente via options.plugins.datalabels
+if (typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+  Chart.defaults.set('plugins.datalabels', { display: false });
+}
+
 let _vendasCarregado = false;
 let _todosVendedores = [];
 let _todosProdutos   = [];
@@ -2041,7 +2049,7 @@ async function carregarVendas() {
     _todosProdutos   = res.produtos   || [];
 
     setSubAbaVendas('dashboard');
-    _montarCardsVertical(res.resumoMes || []);
+    _montarCardsVertical(res.resumoMes || [], res.resumoGeral || {});
     _montarGraficoMensal(res.resumoMes || []);
     _montarGraficoDiario(res.vendaDiaria || []);
     _montarGraficoAnual(res.compAnual || []);
@@ -2053,7 +2061,7 @@ async function carregarVendas() {
   }
 }
 
-function _montarCardsVertical(resumoMes) {
+function _montarCardsVertical(resumoMes, resumoGeral) {
   const el = document.getElementById('v-cards-vertical');
   el.innerHTML = '';
   if (!resumoMes.length) { el.innerHTML = '<div class="empty"><div class="empty-text">Sem dados em RESUMO_MES.</div></div>'; return; }
@@ -2061,6 +2069,20 @@ function _montarCardsVertical(resumoMes) {
   const totClear = resumoMes.reduce((s,r) => s + (r.CLEAR||0), 0);
   const totVtv   = resumoMes.reduce((s,r) => s + (r.VTV||0), 0);
   const totOm    = resumoMes.reduce((s,r) => s + (r.OM||0), 0);
+
+  // Card de variação vs mês anterior (sobe/desce), usando o que o backend já calcula
+  if (resumoGeral && resumoGeral.mes_atual) {
+    const variacao = Number(resumoGeral.variacao || 0);
+    const subiu = variacao >= 0;
+    const cls = subiu ? 'green' : 'orange';
+    const seta = subiu ? '▲' : '▼';
+    const corTexto = subiu ? 'var(--success)' : 'var(--danger)';
+    const card = _criarCardVendas(cls, resumoGeral.mes_atual.Mes_label || 'Mês atual', fmtBrl(resumoGeral.mes_atual.Faturamento||0),
+      `vs mês anterior`);
+    const extraEl = card.querySelector('.vendas-card-extra');
+    if (extraEl) extraEl.innerHTML = `<span style="color:${corTexto};font-weight:700">${seta} ${Math.abs(variacao).toFixed(1)}%</span> vs mês anterior`;
+    el.appendChild(card);
+  }
   el.appendChild(_criarCardVendas('blue', 'Faturamento Total', fmtBrl(tot), resumoMes.length + ' meses'));
   el.appendChild(_criarCardVendas('blue', 'CLEAR', fmtBrl(totClear), tot ? (totClear/tot*100).toFixed(1)+'% do total' : ''));
   el.appendChild(_criarCardVendas('yellow', 'VTV', fmtBrl(totVtv), tot ? (totVtv/tot*100).toFixed(1)+'% do total' : ''));
@@ -2070,17 +2092,53 @@ function _montarCardsVertical(resumoMes) {
 function _montarGraficoMensal(resumoMes) {
   if (!resumoMes.length) return;
   const labels = resumoMes.map(r => r.Mes_label);
+  const clear  = resumoMes.map(r => r.CLEAR||0);
+  const vtv    = resumoMes.map(r => r.VTV||0);
+  const om     = resumoMes.map(r => r.OM||0);
+  const totais = resumoMes.map((_,i) => clear[i]+vtv[i]+om[i]);
+  const fmtCompacto = v => v >= 1000 ? 'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : 'R$ '+Math.round(v);
+
   const ctx = document.getElementById('v-grafico-mensal').getContext('2d');
   if (_graficoMensal) _graficoMensal.destroy();
   _graficoMensal = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [
-      { label:'CLEAR', data: resumoMes.map(r=>r.CLEAR||0), backgroundColor:'rgba(26,115,232,0.8)' },
-      { label:'VTV',   data: resumoMes.map(r=>r.VTV||0),   backgroundColor:'rgba(202,138,4,0.8)' },
-      { label:'O&M',   data: resumoMes.map(r=>r.OM||0),    backgroundColor:'rgba(26,92,90,0.8)' },
+      { label:'CLEAR', data: clear, backgroundColor:'#378ADD' },
+      { label:'VTV',   data: vtv,   backgroundColor:'#BA7517' },
+      { label:'O&M',   data: om,    backgroundColor:'#1D9E75' },
     ]},
-    options: { responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } } },
-      scales:{ x:{stacked:true}, y:{stacked:true, ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } } },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display:false },
+        tooltip: { callbacks: {
+          label: c => c.dataset.label+': '+fmtBrl(c.parsed.y),
+          afterBody: items => 'Total: '+fmtBrl(totais[items[0].dataIndex]),
+        }},
+        datalabels: {
+          display: true,
+          color:'#fff', font:{ size:11, weight:500 },
+          formatter: v => v > 0 ? fmtCompacto(v) : '',
+        },
+      },
+      scales: {
+        x: { stacked:true },
+        y: { stacked:true, ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } },
+      },
+    },
+    plugins: [{
+      id: 'totalNoTopoMensal',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        ctx.font = '500 11px Inter, sans-serif';
+        ctx.fillStyle = '#5f5e5a';
+        ctx.textAlign = 'center';
+        const meta = chart.getDatasetMeta(2);
+        meta.data.forEach((bar, i) => { ctx.fillText(fmtCompacto(totais[i]), bar.x, bar.y - 8); });
+        ctx.restore();
+      },
+    }],
   });
 }
 
