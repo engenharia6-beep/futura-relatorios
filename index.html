@@ -2191,22 +2191,24 @@ function _montarGraficoDiario(vendaDiaria) {
   const labels = vendaDiaria.map(d => 'Dia '+d.Dia);
   const fmtCompactoDia = v => v >= 1000 ? 'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : 'R$ '+Math.round(v);
   const idxMelhorDia = vendaDiaria.findIndex(d => d.Dia === melhorDia.Dia);
+  const coresDiario = vendaDiaria.map((d,i) => i === idxMelhorDia ? '#0d3d3b' : '#1a5c5a');
   const ctx = document.getElementById('v-grafico-diario').getContext('2d');
   if (_graficoDiario) _graficoDiario.destroy();
   _graficoDiario = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: { labels, datasets: [{ label:'Faturamento', data: vendaDiaria.map(d=>d.Faturamento||0),
-      borderColor:'#1a5c5a', backgroundColor:'rgba(26,92,90,0.15)', tension:.2, fill:true, pointRadius:3 }] },
+      backgroundColor: coresDiario, borderRadius:3 }] },
     options: {
       responsive:true,
       plugins: {
         legend:{display:false},
         tooltip:{ callbacks:{ label:c=>'Faturamento: '+fmtBrl(c.parsed.y) } },
         datalabels: {
-          display: ctx => ctx.dataIndex === idxMelhorDia,
-          align:'top', anchor:'end', offset:8,
-          color:'#1a5c5a', font:{ size:11, weight:500 },
-          formatter: v => '🏆 '+fmtCompactoDia(v),
+          display: true,
+          align:'top', anchor:'end', offset:4,
+          color: ctx => ctx.dataIndex === idxMelhorDia ? '#0d3d3b' : '#5f5e5a',
+          font: ctx => ({ size: ctx.dataIndex === idxMelhorDia ? 11 : 10, weight: ctx.dataIndex === idxMelhorDia ? 700 : 400 }),
+          formatter: (v, ctx) => v > 0 ? (ctx.dataIndex === idxMelhorDia ? '🏆 ' : '') + fmtCompactoDia(v) : '',
         },
       },
       scales:{ y:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } },
@@ -2218,28 +2220,28 @@ function _montarGraficoAnual(compAnual) {
   if (!compAnual.length) return;
   const labels = compAnual.map(r => r.Mes_label);
   const fmtCompactoAno = v => v >= 1000 ? 'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : 'R$ '+Math.round(v);
-  const ultimoIdx = labels.length - 1;
   const ctx = document.getElementById('v-grafico-anual').getContext('2d');
   if (_graficoAnual) _graficoAnual.destroy();
   _graficoAnual = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: { labels, datasets: [
-      { label:'2024', data: compAnual.map(r=>r.A2024||0), borderColor:'#9e9e9e', backgroundColor:'rgba(158,158,158,.1)', tension:.2, fill:true, pointRadius:2 },
-      { label:'2025', data: compAnual.map(r=>r.A2025||0), borderColor:'#1a73e8', backgroundColor:'rgba(26,115,232,.1)', tension:.2, fill:true, pointRadius:2 },
-      { label:'2026', data: compAnual.map(r=>r.A2026||0), borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,.1)', tension:.2, fill:true, pointRadius:2 },
+      { label:'2024', data: compAnual.map(r=>r.A2024||0), backgroundColor:'#9e9e9e', borderRadius:3 },
+      { label:'2025', data: compAnual.map(r=>r.A2025||0), backgroundColor:'#1a73e8', borderRadius:3 },
+      { label:'2026', data: compAnual.map(r=>r.A2026||0), backgroundColor:'#16a34a', borderRadius:3 },
     ]},
     options: {
       responsive:true,
       plugins: {
+        legend:{ display:true, position:'top', labels:{ boxWidth:12, font:{ size:11 } } },
         tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } },
         datalabels: {
-          display: ctx => ctx.dataIndex === ultimoIdx,
-          align:'right', anchor:'center', offset:6,
-          color: ctx => ctx.dataset.borderColor, font:{ size:10, weight:500 },
-          formatter: (v, ctx) => ctx.dataset.label+': '+fmtCompactoAno(v),
+          display: true,
+          align:'top', anchor:'end', offset:2,
+          color: ctx => ctx.dataset.backgroundColor, font:{ size:9, weight:500 },
+          formatter: v => v > 0 ? fmtCompactoAno(v) : '',
         },
       },
-      scales:{ y:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } },
+      scales:{ y:{ suggestedMax: Math.max(...compAnual.flatMap(r=>[r.A2024||0,r.A2025||0,r.A2026||0]))*1.12, ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } },
     },
   });
 }
