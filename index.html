@@ -104,6 +104,20 @@
     .foto-produto-vendas{width:36px;height:36px;object-fit:contain;border-radius:6px;border:1px solid var(--border);background:#fff;display:block}
     .foto-placeholder-vendas{width:36px;height:36px;border-radius:6px;border:1px solid var(--border);background:#f0f4f5;display:flex;align-items:center;justify-content:center;font-size:14px;color:#c8d8da}
 
+    /* ── Corrida por vertical (gamificação) ── */
+    .v-tab-vertical{padding:8px 18px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-muted);transition:all .15s}
+    .v-tab-grupo{padding:7px 16px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:700;cursor:pointer;color:var(--text-muted);transition:all .15s}
+    .v-tab-grupo.active{background:rgba(26,92,90,.1);border-color:var(--accent);color:var(--accent)}
+    .v-tab-vertical.active.clear{background:#e8f0fe;border-color:#1a73e8;color:#1a73e8}
+    .v-tab-vertical.active.vtv{background:#fff8e1;border-color:#ca8a04;color:#ca8a04}
+    .v-tab-vertical.active.om{background:#e6f4ea;border-color:#16a34a;color:#16a34a}
+    .v-corrida-linha{margin-bottom:14px}
+    .v-corrida-topo{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:5px}
+    .v-corrida-nome{font-weight:600;color:var(--text)}
+    .v-corrida-valor{font-weight:700;font-family:var(--mono);font-size:12px;color:var(--text-muted)}
+    .v-corrida-trilha{height:10px;background:#f0f4f5;border-radius:5px;overflow:hidden}
+    .v-corrida-barra{height:100%;border-radius:5px;transition:width .4s ease}
+
     /* ── Painel de relatório ── */
     .rel-panel{display:none;flex-direction:column;gap:16px}
     .rel-panel.active{display:flex}
@@ -764,6 +778,13 @@
       <!-- SUB-ABA: VENDEDORES -->
       <div id="vendas-sub-vendedores" class="vendas-sub" style="display:none">
         <div id="v-cards-vendedores" class="vendas-cards"></div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Corrida por vertical</div>
+          <div id="v-tabs-vertical" style="display:flex;gap:8px;margin-bottom:14px"></div>
+          <div id="v-corrida-vertical"></div>
+        </div>
+
         <div class="vendas-secao">
           <div class="vendas-secao-titulo">Ranking de vendedores</div>
           <div class="vendas-painel-layout">
@@ -788,6 +809,19 @@
       <!-- SUB-ABA: PRODUTOS -->
       <div id="vendas-sub-produtos" class="vendas-sub" style="display:none">
         <div id="v-cards-produtos" class="vendas-cards"></div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Produtos por grupo</div>
+          <div id="v-tabs-grupo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
+          <div id="v-grupo-resumo" style="font-size:13px;color:var(--text-muted);margin-bottom:10px"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Código</th><th>Descrição</th><th>Faturamento</th></tr></thead>
+              <tbody id="v-tabela-grupo"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="vendas-secao">
           <div class="vendas-secao-titulo">Ranking de produtos</div>
           <div class="vendas-painel-layout">
@@ -2155,31 +2189,58 @@ function _montarGraficoDiario(vendaDiaria) {
   el.appendChild(_criarCardVendas('purple', 'Melhor Dia', 'Dia ' + melhorDia.Dia, fmtBrl(melhorDia.Faturamento)));
 
   const labels = vendaDiaria.map(d => 'Dia '+d.Dia);
+  const fmtCompactoDia = v => v >= 1000 ? 'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : 'R$ '+Math.round(v);
+  const idxMelhorDia = vendaDiaria.findIndex(d => d.Dia === melhorDia.Dia);
   const ctx = document.getElementById('v-grafico-diario').getContext('2d');
   if (_graficoDiario) _graficoDiario.destroy();
   _graficoDiario = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: [{ label:'Faturamento', data: vendaDiaria.map(d=>d.Faturamento||0),
-      borderColor:'#1a5c5a', backgroundColor:'rgba(26,92,90,0.15)', tension:.2, fill:true }] },
-    options: { responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>'Faturamento: '+fmtBrl(c.parsed.y) } } },
-      scales:{ y:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } } },
+      borderColor:'#1a5c5a', backgroundColor:'rgba(26,92,90,0.15)', tension:.2, fill:true, pointRadius:3 }] },
+    options: {
+      responsive:true,
+      plugins: {
+        legend:{display:false},
+        tooltip:{ callbacks:{ label:c=>'Faturamento: '+fmtBrl(c.parsed.y) } },
+        datalabels: {
+          display: ctx => ctx.dataIndex === idxMelhorDia,
+          align:'top', anchor:'end', offset:8,
+          color:'#1a5c5a', font:{ size:11, weight:500 },
+          formatter: v => '🏆 '+fmtCompactoDia(v),
+        },
+      },
+      scales:{ y:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } },
+    },
   });
 }
 
 function _montarGraficoAnual(compAnual) {
   if (!compAnual.length) return;
   const labels = compAnual.map(r => r.Mes_label);
+  const fmtCompactoAno = v => v >= 1000 ? 'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : 'R$ '+Math.round(v);
+  const ultimoIdx = labels.length - 1;
   const ctx = document.getElementById('v-grafico-anual').getContext('2d');
   if (_graficoAnual) _graficoAnual.destroy();
   _graficoAnual = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: [
-      { label:'2024', data: compAnual.map(r=>r.A2024||0), borderColor:'#9e9e9e', backgroundColor:'rgba(158,158,158,.1)', tension:.2, fill:true },
-      { label:'2025', data: compAnual.map(r=>r.A2025||0), borderColor:'#1a73e8', backgroundColor:'rgba(26,115,232,.1)', tension:.2, fill:true },
-      { label:'2026', data: compAnual.map(r=>r.A2026||0), borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,.1)', tension:.2, fill:true },
+      { label:'2024', data: compAnual.map(r=>r.A2024||0), borderColor:'#9e9e9e', backgroundColor:'rgba(158,158,158,.1)', tension:.2, fill:true, pointRadius:2 },
+      { label:'2025', data: compAnual.map(r=>r.A2025||0), borderColor:'#1a73e8', backgroundColor:'rgba(26,115,232,.1)', tension:.2, fill:true, pointRadius:2 },
+      { label:'2026', data: compAnual.map(r=>r.A2026||0), borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,.1)', tension:.2, fill:true, pointRadius:2 },
     ]},
-    options: { responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } } },
-      scales:{ y:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } } },
+    options: {
+      responsive:true,
+      plugins: {
+        tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } },
+        datalabels: {
+          display: ctx => ctx.dataIndex === ultimoIdx,
+          align:'right', anchor:'center', offset:6,
+          color: ctx => ctx.dataset.borderColor, font:{ size:10, weight:500 },
+          formatter: (v, ctx) => ctx.dataset.label+': '+fmtCompactoAno(v),
+        },
+      },
+      scales:{ y:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } },
+    },
   });
 }
 
@@ -2222,6 +2283,58 @@ function _montarPainelVendedores(vendedores) {
   sel.innerHTML = vendedores.map(v => `<option value="${esc(v.Vendedor)}">${esc(v.Vendedor)} (${esc(v.Vertical)})</option>`).join('');
   sel.value = vendedores[0].Vendedor;
   atualizarEvolucaoVendedor();
+
+  _montarCorridaVertical(vendedores);
+}
+
+// Medalhas e cores por vertical, usadas na "corrida" (Opção B: abas + barra de progresso
+// relativa ao líder daquela vertical — estimula competição interna)
+const _CORES_VERTICAL = { CLEAR:{cor:'#1a73e8',cls:'clear'}, VTV:{cor:'#ca8a04',cls:'vtv'}, 'O&M':{cor:'#16a34a',cls:'om'} };
+let _verticalAtivaCorrida = null;
+
+function _montarCorridaVertical(vendedores) {
+  const verticais = [...new Set(vendedores.map(v => v.Vertical))].filter(Boolean);
+  if (!verticais.length) { document.getElementById('v-corrida-vertical').innerHTML = ''; return; }
+  if (!_verticalAtivaCorrida || !verticais.includes(_verticalAtivaCorrida)) _verticalAtivaCorrida = verticais[0];
+
+  const tabsEl = document.getElementById('v-tabs-vertical');
+  tabsEl.innerHTML = verticais.map(v => {
+    const info = _CORES_VERTICAL[v] || { cls:'' };
+    const ativo = v === _verticalAtivaCorrida ? 'active' : '';
+    return `<button class="v-tab-vertical ${ativo} ${info.cls}" onclick="_trocarVerticalCorrida('${esc(v)}')">${esc(v)}</button>`;
+  }).join('');
+
+  _renderCorridaVertical(vendedores);
+}
+
+function _trocarVerticalCorrida(vertical) {
+  _verticalAtivaCorrida = vertical;
+  _montarCorridaVertical(_todosVendedores);
+}
+
+function _renderCorridaVertical(vendedores) {
+  const lista = vendedores.filter(v => v.Vertical === _verticalAtivaCorrida).slice(0, 10);
+  const el = document.getElementById('v-corrida-vertical');
+  if (!lista.length) { el.innerHTML = '<div class="empty"><div class="empty-text">Sem vendedores nesta vertical.</div></div>'; return; }
+
+  const lider = lista[0].FatTotal || 1; // evita divisão por zero
+  const info = _CORES_VERTICAL[_verticalAtivaCorrida] || { cor:'#1a5c5a' };
+  const medalhas = ['🥇','🥈','🥉'];
+
+  el.innerHTML = lista.map((v, idx) => {
+    const fat = v.FatTotal || 0;
+    const pct = lider ? Math.max(2, (fat / lider) * 100) : 0;
+    const medalha = medalhas[idx] || `${idx+1}º`;
+    return `<div class="v-corrida-linha">
+      <div class="v-corrida-topo">
+        <span class="v-corrida-nome">${medalha} ${esc(v.Vendedor)}</span>
+        <span class="v-corrida-valor">${fmtBrl(fat)}</span>
+      </div>
+      <div class="v-corrida-trilha">
+        <div class="v-corrida-barra" style="width:${pct}%;background:${info.cor}"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function atualizarEvolucaoVendedor() {
@@ -2288,6 +2401,49 @@ function _montarPainelProdutos(produtos) {
     options: { indexAxis:'y', responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>'Faturamento: '+fmtBrl(c.parsed.x) } } },
       scales:{ x:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } }, y:{ ticks:{ autoSkip:false } } } },
   });
+
+  _montarProdutosPorGrupo(produtos);
+}
+
+// Produtos agrupados por GRUPO (ex: "Câmeras 776", "Gravadores 1194", "Acessórios") —
+// abas para trocar de grupo, tabela simplificada (só código e descrição, conforme pedido).
+let _grupoAtivoProdutos = null;
+
+function _montarProdutosPorGrupo(produtos) {
+  const grupos = [...new Set(produtos.map(p => p.Grupo || '(Sem grupo)'))];
+  if (!grupos.length) { document.getElementById('v-tabs-grupo').innerHTML = ''; return; }
+  if (!_grupoAtivoProdutos || !grupos.includes(_grupoAtivoProdutos)) _grupoAtivoProdutos = grupos[0];
+
+  const tabsEl = document.getElementById('v-tabs-grupo');
+  tabsEl.innerHTML = grupos.map(g => {
+    const ativo = g === _grupoAtivoProdutos ? 'active' : '';
+    const qtd = produtos.filter(p => (p.Grupo||'(Sem grupo)') === g).length;
+    return `<button class="v-tab-grupo ${ativo}" onclick="_trocarGrupoProdutos('${esc(g)}')">${esc(g)} <span style="opacity:.6">(${qtd})</span></button>`;
+  }).join('');
+
+  _renderGrupoProdutos(produtos);
+}
+
+function _trocarGrupoProdutos(grupo) {
+  _grupoAtivoProdutos = grupo;
+  _montarProdutosPorGrupo(_todosProdutos);
+}
+
+function _renderGrupoProdutos(produtos) {
+  const lista = produtos.filter(p => (p.Grupo||'(Sem grupo)') === _grupoAtivoProdutos);
+  const totalGrupo = lista.reduce((s,p) => s + (p.FatTotal||0), 0);
+
+  document.getElementById('v-grupo-resumo').innerHTML =
+    `<strong>${fmtNum(lista.length)}</strong> produtos · Faturamento do grupo: <strong>${fmtBrl(totalGrupo)}</strong>`;
+
+  const tbody = document.getElementById('v-tabela-grupo');
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum produto neste grupo.</td></tr>'; return; }
+  tbody.innerHTML = lista.map((p, idx) => `<tr>
+    <td>${idx+1}</td>
+    <td class="mono">${esc(p.Codigo)}</td>
+    <td>${esc(p.Descricao||'')}</td>
+    <td class="num">${fmtBrl(p.FatTotal||0)}</td>
+  </tr>`).join('');
 }
 
 // ══════════════════════════════════════════════════════
