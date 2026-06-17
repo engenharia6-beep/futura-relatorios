@@ -2219,30 +2219,53 @@ function _montarGraficoDiario(vendaDiaria) {
 function _montarGraficoAnual(compAnual) {
   if (!compAnual.length) return;
   const labels = compAnual.map(r => r.Mes_label);
+  const a2024 = compAnual.map(r => r.A2024||0);
+  const a2025 = compAnual.map(r => r.A2025||0);
+  const a2026 = compAnual.map(r => r.A2026||0);
+  const totaisAno = compAnual.map((_,i) => a2024[i]+a2025[i]+a2026[i]);
   const fmtCompactoAno = v => v >= 1000 ? 'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : 'R$ '+Math.round(v);
+
   const ctx = document.getElementById('v-grafico-anual').getContext('2d');
   if (_graficoAnual) _graficoAnual.destroy();
   _graficoAnual = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [
-      { label:'2024', data: compAnual.map(r=>r.A2024||0), backgroundColor:'#9e9e9e', borderRadius:3 },
-      { label:'2025', data: compAnual.map(r=>r.A2025||0), backgroundColor:'#1a73e8', borderRadius:3 },
-      { label:'2026', data: compAnual.map(r=>r.A2026||0), backgroundColor:'#16a34a', borderRadius:3 },
+      { label:'2024', data: a2024, backgroundColor:'#9e9e9e' },
+      { label:'2025', data: a2025, backgroundColor:'#1a73e8' },
+      { label:'2026', data: a2026, backgroundColor:'#16a34a' },
     ]},
     options: {
-      responsive:true,
+      responsive: true,
       plugins: {
-        legend:{ display:true, position:'top', labels:{ boxWidth:12, font:{ size:11 } } },
-        tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } },
+        legend: { display:false },
+        tooltip: { callbacks: {
+          label: c => c.dataset.label+': '+fmtBrl(c.parsed.y),
+          afterBody: items => 'Total: '+fmtBrl(totaisAno[items[0].dataIndex]),
+        }},
         datalabels: {
           display: true,
-          align:'top', anchor:'end', offset:2,
-          color: ctx => ctx.dataset.backgroundColor, font:{ size:9, weight:500 },
+          color:'#fff', font:{ size:11, weight:500 },
           formatter: v => v > 0 ? fmtCompactoAno(v) : '',
         },
       },
-      scales:{ y:{ suggestedMax: Math.max(...compAnual.flatMap(r=>[r.A2024||0,r.A2025||0,r.A2026||0]))*1.12, ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } },
+      scales: {
+        x: { stacked:true },
+        y: { stacked:true, ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } },
+      },
     },
+    plugins: [{
+      id: 'totalNoTopoAnual',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        ctx.font = '500 11px Inter, sans-serif';
+        ctx.fillStyle = '#5f5e5a';
+        ctx.textAlign = 'center';
+        const meta = chart.getDatasetMeta(2);
+        meta.data.forEach((bar, i) => { ctx.fillText(fmtCompactoAno(totaisAno[i]), bar.x, bar.y - 8); });
+        ctx.restore();
+      },
+    }],
   });
 }
 
