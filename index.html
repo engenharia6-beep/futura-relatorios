@@ -46,7 +46,7 @@
     #header-user{font-size:12px;color:rgba(255,255,255,.7)}
     #btn-logout{background:transparent;color:rgba(255,255,255,.7);font-size:20px;padding:4px;line-height:1;transition:color .18s}
     #btn-logout:hover{color:#fff}
-    #main{flex:1;padding:20px;max-width:1400px;margin:0 auto;width:100%}
+    #main{flex:1;padding:20px;max-width:1800px;margin:0 auto;width:100%}
 
     /* ── Botões ── */
     .btn{height:40px;padding:0 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:all .18s;cursor:pointer}
@@ -86,10 +86,10 @@
     .filtro-group input:focus,.filtro-group select:focus{border-color:var(--border-focus);outline:none}
 
     /* ── Tabela ── */
-    .table-wrap{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden}
+    .table-wrap{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);overflow-x:auto}
     .table-info{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)}
     .table-info strong{color:var(--text)}
-    table{width:100%;border-collapse:collapse;font-size:12px}
+    table{width:100%;min-width:max-content;border-collapse:collapse;font-size:12px}
     thead tr{background:#f0f6f6}
     th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
     th:hover{color:var(--accent)}
@@ -1661,18 +1661,20 @@ function setModoFechamento(modo) {
   _dadosRel['fechamento'] = [];
 }
 
-async function calcularFechamento() {
+async function calcularFechamento(forcar) {
   const mesInput = document.getElementById('fech-mes').value; // formato yyyy-MM
   if (!mesInput) { toast('Selecione o mês de referência.', 'warn'); return; }
 
-  let payload = { mesRef: mesInput };
+  let payload = { mesRef: mesInput, forcarRecalculo: !!forcar };
   if (_modoFechamento === 'm5') {
     const taxa = document.getElementById('fech-taxa').value;
+    // Taxa só é obrigatória se for de fato calcular (não precisa se só for ler o já arquivado,
+    // mas como não sabemos de antemão, exigimos sempre — é rápido de digitar)
     if (!taxa || Number(taxa) <= 0) { toast('Informe a taxa do dólar do dia.', 'warn'); return; }
     payload.taxaDolar = Number(taxa);
   }
 
-  setLoading('fech-table-body', 'fech-count', 'Calculando fechamento mensal...');
+  setLoading('fech-table-body', 'fech-count', 'Verificando mês de referência...');
   document.getElementById('fech-confirmar-bar').style.display = 'none';
   document.getElementById('fech-info-mes').style.display = 'none';
 
@@ -1684,20 +1686,35 @@ async function calcularFechamento() {
     const linhas = res.linhas || [];
     _dadosRel['fechamento'] = linhas;
 
+    const infoEl = document.getElementById('fech-info-mes');
+    infoEl.style.display = 'block';
+
+    if (res.jaArquivado) {
+      // Mês já está fechado no Histórico — mostra os dados já gravados, sem recalcular
+      infoEl.style.background = 'rgba(22,163,74,.06)';
+      infoEl.style.borderColor = 'rgba(22,163,74,.3)';
+      infoEl.style.color = '#15803d';
+      infoEl.innerHTML =
+        `✅ <strong>O mês ${esc(res.mesAtual)} já está arquivado</strong> no histórico. Os valores abaixo são os que já foram gravados — nenhum cálculo novo foi feito. ` +
+        `<button onclick="calcularFechamento(true)" style="margin-left:8px;background:transparent;border:1px solid #15803d;color:#15803d;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">🔄 Recalcular mesmo assim</button>`;
+      _renderFechamento(linhas);
+      document.getElementById('fech-confirmar-bar').style.display = 'none'; // já está arquivado, nada a confirmar
+      document.getElementById('fech-count').innerHTML = `<strong>${fmtNum(linhas.length)}</strong> itens (já arquivados)`;
+      return;
+    }
+
     if (res.bloqueadoParaArquivar) {
-      document.getElementById('fech-info-mes').style.display = 'block';
-      document.getElementById('fech-info-mes').style.background = 'rgba(220,38,38,.06)';
-      document.getElementById('fech-info-mes').style.borderColor = 'rgba(220,38,38,.3)';
-      document.getElementById('fech-info-mes').style.color = '#b91c1c';
-      document.getElementById('fech-info-mes').innerHTML =
+      infoEl.style.background = 'rgba(220,38,38,.06)';
+      infoEl.style.borderColor = 'rgba(220,38,38,.3)';
+      infoEl.style.color = '#b91c1c';
+      infoEl.innerHTML =
         `⚠️ <strong>Este mês está bloqueado para arquivamento.</strong> Já existe(m) o(s) mês(es) <strong>${res.mesesPosteriores.join(', ')}</strong> arquivado(s) no histórico, posterior(es) a este. ` +
         `Você pode visualizar os valores abaixo (cálculo de conferência), mas recalcular e gravar este mês mudaria seu Saldo Fim Mês e desatualizaria o Estoque Inicial dos meses seguintes já fechados.`;
     } else {
-      document.getElementById('fech-info-mes').style.display = 'block';
-      document.getElementById('fech-info-mes').style.background = '#fff';
-      document.getElementById('fech-info-mes').style.borderColor = 'var(--border)';
-      document.getElementById('fech-info-mes').style.color = 'var(--text-muted)';
-      document.getElementById('fech-info-mes').innerHTML =
+      infoEl.style.background = '#fff';
+      infoEl.style.borderColor = 'var(--border)';
+      infoEl.style.color = 'var(--text-muted)';
+      infoEl.innerHTML =
         `Calculando <strong>${esc(res.mesAtual)}</strong> — Estoque Inicial obtido do fechamento de <strong>${esc(res.mesAnterior)}</strong>. ` +
         (linhas.some(l=>l.inicial===0) ? 'Itens com Inicial = 0 podem não ter fechamento anterior arquivado.' : '');
     }
