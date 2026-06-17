@@ -725,6 +725,7 @@ function toast(msg, tipo = 'ok', dur = 3500) {
 // ══════════════════════════════════════════════════════
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmtNum(n) { return Number(n||0).toLocaleString('pt-BR'); }
+function fmtMoeda(n) { const v = Number(n); return (isNaN(v) ? 0 : v).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 function fmtData(s) { return s ? String(s).substring(0,10).split('-').reverse().join('/') : ''; }
 
 // Converte "dd/MM/yyyy HH:mm" ou "dd/MM/yyyy" → "yyyy-MM-dd" (só data, para filtros)
@@ -1739,8 +1740,8 @@ async function calcularFechamento(forcar) {
 
 function _renderFechamento(linhas) {
   document.getElementById('fech-count').innerHTML = `<strong>${fmtNum(linhas.length)}</strong> itens calculados`;
-  const totalGeral = linhas.reduce((s,l) => s + (l.rsTotal||l.precoTotal||0), 0);
-  document.getElementById('fech-total').textContent = totalGeral ? `Total: R$ ${totalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '';
+  const totalGeral = linhas.reduce((s,l) => s + (Number(l.rsTotal)||Number(l.precoTotal)||0), 0);
+  document.getElementById('fech-total').textContent = totalGeral ? `Total: R$ ${fmtMoeda(totalGeral)}` : '';
 
   if (!linhas.length) {
     document.getElementById('fech-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Nenhum item encontrado.</div></div>';
@@ -1772,13 +1773,13 @@ function _renderFechamento(linhas) {
           <td style="font-size:11px;color:#4a6a6a">${esc(l.um)}</td>
           <td class="mono" style="font-size:11px">${esc(l.portaria)}</td>
           <td class="mono" style="font-size:11px">${esc(l.ncm)}</td>
-          <td class="num">${l.usdUnit.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-          <td class="num">${l.rsUnit.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td class="num">${fmtMoeda(l.usdUnit)}</td>
+          <td class="num">${fmtMoeda(l.rsUnit)}</td>
           <td class="num">${fmtNum(l.inicial)}</td>
           <td class="num pos">${fmtNum(l.entrada)}</td>
           <td class="num neg">${fmtNum(l.saida)}</td>
           <td class="num" style="font-weight:700">${fmtNum(l.saldo)}</td>
-          <td class="num">${l.rsTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td class="num">${fmtMoeda(l.rsTotal)}</td>
         </tr>`).join('')}</tbody>
       </table>`;
   } else {
@@ -1805,12 +1806,12 @@ function _renderFechamento(linhas) {
           <td style="font-size:11px;color:#4a6a6a">${esc(l.projeto)}</td>
           <td class="mono" style="font-size:11px">${esc(l.ncm)}</td>
           <td class="mono" style="font-size:11px">${esc(l.endereco)}</td>
-          <td class="num">${l.precoUnit.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td class="num">${fmtMoeda(l.precoUnit)}</td>
           <td class="num">${fmtNum(l.inicial)}</td>
           <td class="num pos">${fmtNum(l.entrada)}</td>
           <td class="num neg">${fmtNum(l.saida)}</td>
           <td class="num" style="font-weight:700">${fmtNum(l.saldo)}</td>
-          <td class="num">${l.precoTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td class="num">${fmtMoeda(l.precoTotal)}</td>
         </tr>`).join('')}</tbody>
       </table>`;
   }
