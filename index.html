@@ -1684,14 +1684,33 @@ async function calcularFechamento() {
     const linhas = res.linhas || [];
     _dadosRel['fechamento'] = linhas;
 
-    document.getElementById('fech-info-mes').style.display = 'block';
-    document.getElementById('fech-info-mes').innerHTML =
-      `Calculando <strong>${esc(res.mesAtual)}</strong> — Estoque Inicial obtido do fechamento de <strong>${esc(res.mesAnterior)}</strong>. ` +
-      (linhas.some(l=>l.inicial===0) ? 'Itens com Inicial = 0 podem não ter fechamento anterior arquivado.' : '');
+    if (res.bloqueadoParaArquivar) {
+      document.getElementById('fech-info-mes').style.display = 'block';
+      document.getElementById('fech-info-mes').style.background = 'rgba(220,38,38,.06)';
+      document.getElementById('fech-info-mes').style.borderColor = 'rgba(220,38,38,.3)';
+      document.getElementById('fech-info-mes').style.color = '#b91c1c';
+      document.getElementById('fech-info-mes').innerHTML =
+        `⚠️ <strong>Este mês está bloqueado para arquivamento.</strong> Já existe(m) o(s) mês(es) <strong>${res.mesesPosteriores.join(', ')}</strong> arquivado(s) no histórico, posterior(es) a este. ` +
+        `Você pode visualizar os valores abaixo (cálculo de conferência), mas recalcular e gravar este mês mudaria seu Saldo Fim Mês e desatualizaria o Estoque Inicial dos meses seguintes já fechados.`;
+    } else {
+      document.getElementById('fech-info-mes').style.display = 'block';
+      document.getElementById('fech-info-mes').style.background = '#fff';
+      document.getElementById('fech-info-mes').style.borderColor = 'var(--border)';
+      document.getElementById('fech-info-mes').style.color = 'var(--text-muted)';
+      document.getElementById('fech-info-mes').innerHTML =
+        `Calculando <strong>${esc(res.mesAtual)}</strong> — Estoque Inicial obtido do fechamento de <strong>${esc(res.mesAnterior)}</strong>. ` +
+        (linhas.some(l=>l.inicial===0) ? 'Itens com Inicial = 0 podem não ter fechamento anterior arquivado.' : '');
+    }
 
     _renderFechamento(linhas);
 
+    const podeArquivar = linhas.length && !res.bloqueadoParaArquivar;
     document.getElementById('fech-confirmar-bar').style.display = linhas.length ? 'flex' : 'none';
+    const btnConfirmar = document.querySelector('#fech-confirmar-bar button');
+    btnConfirmar.disabled = !podeArquivar;
+    btnConfirmar.style.opacity = podeArquivar ? '1' : '.5';
+    btnConfirmar.style.cursor = podeArquivar ? 'pointer' : 'not-allowed';
+    btnConfirmar.textContent = podeArquivar ? '✔ Confirmar e Arquivar' : '🔒 Bloqueado — mês posterior já arquivado';
   } catch(e) {
     document.getElementById('fech-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
     document.getElementById('fech-count').textContent = 'Erro';
