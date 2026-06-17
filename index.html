@@ -10,6 +10,7 @@
   <title>Relatórios de Gestão — Futura</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <style>
     :root {
       --bg:#f0f4f5; --bg-card:#ffffff; --bg-input:#ffffff;
@@ -68,6 +69,39 @@
     .rel-card-title{font-size:15px;font-weight:700;color:var(--text)}
     .rel-card-desc{font-size:12px;color:var(--text-muted);line-height:1.5}
     .rel-card-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(26,92,90,.1);color:var(--accent)}
+
+    /* ── Dashboard de Vendas ── */
+    .vendas-sub{margin-top:4px}
+    .vendas-cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+    .vendas-card{flex:1;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 18px;text-align:center;border-top:4px solid #ccc}
+    .vendas-card.blue{border-top-color:#1a73e8}
+    .vendas-card.green{border-top-color:#16a34a}
+    .vendas-card.orange{border-top-color:#ea580c}
+    .vendas-card.purple{border-top-color:#7c3aed}
+    .vendas-card.yellow{border-top-color:#ca8a04}
+    .vendas-card.teal{border-top-color:var(--accent)}
+    .vendas-card-label{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px}
+    .vendas-card-valor{font-weight:800;margin:0;font-size:18px;color:var(--text)}
+    .vendas-card-extra{color:var(--text-muted);font-size:11px;margin:4px 0 0}
+    .vendas-secao{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:20px}
+    .vendas-secao-titulo{color:var(--text-muted);font-size:11px;font-weight:700;letter-spacing:.05em;margin-bottom:12px;text-transform:uppercase}
+    .vendas-painel-layout{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+    .vendas-painel-tabela{flex:1.4;min-width:320px}
+    .vendas-painel-grafico{flex:1;min-width:280px}
+    .badge-vertical{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+    .badge-vertical.clear{background:#e8f0fe;color:#1a73e8}
+    .badge-vertical.vtv{background:#fff8e1;color:#ca8a04}
+    .badge-vertical.om{background:#e6f4ea;color:#16a34a}
+    .rank-num{font-weight:700;color:#fff;background:#1a73e8;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+    .rank-num.gold{background:#ca8a04}
+    .rank-num.silver{background:#9e9e9e}
+    .rank-num.bronze{background:#a1673a}
+    .tag-grupo,.tag-familia,.tag-projeto{font-size:10px;padding:2px 6px;border-radius:8px;display:inline-block;margin:1px}
+    .tag-grupo{background:#e8f0fe;color:#1a73e8}
+    .tag-familia{background:#f1f8e9;color:#558b2f}
+    .tag-projeto{background:#fce4ec;color:#c62828}
+    .foto-produto-vendas{width:36px;height:36px;object-fit:contain;border-radius:6px;border:1px solid var(--border);background:#fff;display:block}
+    .foto-placeholder-vendas{width:36px;height:36px;border-radius:6px;border:1px solid var(--border);background:#f0f4f5;display:flex;align-items:center;justify-content:center;font-size:14px;color:#c8d8da}
 
     /* ── Painel de relatório ── */
     .rel-panel{display:none;flex-direction:column;gap:16px}
@@ -249,6 +283,13 @@
           <div class="rel-card-title">Fechamento Mensal M5/M3</div>
           <div class="rel-card-desc">Calcula o fechamento mensal de Insumos (M5) e Produtos Acabados (M3) com saldo inicial, entradas, saídas e arquiva no histórico.</div>
           <div><span class="rel-card-badge" style="background:rgba(124,58,237,.15);color:#6d28d9">Fechamento</span></div>
+        </div>
+
+        <div class="rel-card" onclick="abrirRelatorio('vendas'); carregarVendas();" style="border-color:rgba(13,148,136,.3);background:rgba(13,148,136,.03)">
+          <div class="rel-card-icon">💹</div>
+          <div class="rel-card-title">Dashboard de Vendas</div>
+          <div class="rel-card-desc">Faturamento por vertical, ranking de vendedores e produtos, comparação anual e evolução mensal — dados da planilha de vendas.</div>
+          <div><span class="rel-card-badge" style="background:rgba(13,148,136,.15);color:#0d7a6e">Vendas</span></div>
         </div>
 
       </div>
@@ -679,6 +720,91 @@
       </div>
     </div>
 
+    <!-- ══ RELATÓRIO 9: DASHBOARD DE VENDAS ══ -->
+    <div id="rel-vendas" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">💹 Dashboard de Vendas</div>
+        <div class="rel-actions">
+          <button class="btn btn-secondary btn-sm" onclick="carregarVendas()">🔄 Atualizar</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:4px">
+        <button id="vtab-dashboard" class="btn btn-primary btn-sm" onclick="setSubAbaVendas('dashboard')" style="flex:1">📊 Dashboard</button>
+        <button id="vtab-vendedores" class="btn btn-secondary btn-sm" onclick="setSubAbaVendas('vendedores')" style="flex:1">👤 Vendedores</button>
+        <button id="vtab-produtos" class="btn btn-secondary btn-sm" onclick="setSubAbaVendas('produtos')" style="flex:1">📦 Produtos</button>
+      </div>
+
+      <div id="vendas-loading" class="empty"><div class="empty-icon">💹</div><div class="empty-text">Carregando dados de vendas...</div></div>
+
+      <!-- SUB-ABA: DASHBOARD -->
+      <div id="vendas-sub-dashboard" class="vendas-sub" style="display:none">
+        <div class="vendas-secao-titulo">Faturamento por vertical</div>
+        <div id="v-cards-vertical" class="vendas-cards"></div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Faturamento mensal — CLEAR / VTV / O&M</div>
+          <canvas id="v-grafico-mensal" height="90"></canvas>
+        </div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Vendas diárias — mês mais recente</div>
+          <div id="v-cards-diario" class="vendas-cards"></div>
+          <canvas id="v-grafico-diario" height="90"></canvas>
+        </div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Comparação anual</div>
+          <canvas id="v-grafico-anual" height="90"></canvas>
+        </div>
+      </div>
+
+      <!-- SUB-ABA: VENDEDORES -->
+      <div id="vendas-sub-vendedores" class="vendas-sub" style="display:none">
+        <div id="v-cards-vendedores" class="vendas-cards"></div>
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Ranking de vendedores</div>
+          <div class="vendas-painel-layout">
+            <div class="vendas-painel-tabela table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Vendedor</th><th>Vertical</th><th>Faturamento</th><th>%</th></tr></thead>
+                <tbody id="v-tabela-vendedores"></tbody>
+              </table>
+            </div>
+            <div class="vendas-painel-grafico">
+              <div class="vendas-secao-titulo">Top 10</div>
+              <canvas id="v-grafico-top-vendedores" height="220"></canvas>
+              <div style="height:16px"></div>
+              <div class="vendas-secao-titulo">Evolução mensal</div>
+              <select id="v-select-vendedor" onchange="atualizarEvolucaoVendedor()" style="width:100%;padding:8px;margin-bottom:8px;border-radius:8px;border:1.5px solid var(--border);font-size:13px"></select>
+              <canvas id="v-grafico-evolucao-vendedor" height="180"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-ABA: PRODUTOS -->
+      <div id="vendas-sub-produtos" class="vendas-sub" style="display:none">
+        <div id="v-cards-produtos" class="vendas-cards"></div>
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Ranking de produtos</div>
+          <div class="vendas-painel-layout">
+            <div class="vendas-painel-tabela table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Foto</th><th>Código</th><th>Descrição</th><th>Tags</th><th>Faturamento</th><th>Qtde</th><th>Preço Médio</th></tr></thead>
+                <tbody id="v-tabela-produtos"></tbody>
+              </table>
+            </div>
+            <div class="vendas-painel-grafico">
+              <div class="vendas-secao-titulo">Top 10 — Faturamento</div>
+              <canvas id="v-grafico-top-produtos" height="280"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /main -->
 
 <script src="config.js"></script>
@@ -811,6 +937,7 @@ function abrirRelatorio(id) {
     'extrato':          '🔍 Extrato',
     'compras':          '🛒 Lista de Compras',
     'fechamento':       '📅 Fechamento Mensal',
+    'vendas':           '💹 Dashboard de Vendas',
   }[id] || 'Relatórios';
 }
 
@@ -1862,6 +1989,247 @@ async function arquivarFechamento() {
   } finally {
     btn.disabled = false; btn.innerHTML = '✔ Confirmar e Arquivar';
   }
+}
+
+// ══════════════════════════════════════════════════════
+//  REL 9: DASHBOARD DE VENDAS
+// ══════════════════════════════════════════════════════
+let _vendasCarregado = false;
+let _todosVendedores = [];
+let _todosProdutos   = [];
+let _graficoMensal, _graficoDiario, _graficoAnual, _graficoTopVend, _graficoEvolVend, _graficoTopProd;
+
+function fmtBrl(v) { v = Number(v)||0; return 'R$ ' + Math.round(v).toLocaleString('pt-BR'); }
+
+function _criarCardVendas(cls, label, valor, extra) {
+  const d = document.createElement('div');
+  d.className = 'vendas-card ' + cls;
+  d.innerHTML = `<p class="vendas-card-label">${esc(label)}</p><p class="vendas-card-valor">${valor}</p>` +
+    (extra ? `<p class="vendas-card-extra">${esc(extra)}</p>` : '');
+  return d;
+}
+
+function _sortMeses(arr) {
+  return arr.slice().sort((a,b) => {
+    const na = Number(String(a).replace('/','')), nb = Number(String(b).replace('/',''));
+    return (!isNaN(na) && !isNaN(nb)) ? na-nb : String(a).localeCompare(String(b));
+  });
+}
+
+function setSubAbaVendas(nome) {
+  ['dashboard','vendedores','produtos'].forEach(n => {
+    document.getElementById('vendas-sub-'+n).style.display = n===nome ? 'block' : 'none';
+    document.getElementById('vtab-'+n).className = 'btn btn-sm ' + (n===nome ? 'btn-primary' : 'btn-secondary');
+  });
+}
+
+async function carregarVendas() {
+  if (_vendasCarregado) return; // evita recarregar a cada clique no card
+  document.getElementById('vendas-loading').style.display = 'block';
+  ['dashboard','vendedores','produtos'].forEach(n => document.getElementById('vendas-sub-'+n).style.display = 'none');
+
+  try {
+    const res = await api('getDashboardVendas', {});
+    document.getElementById('vendas-loading').style.display = 'none';
+    if (!res?.ok) {
+      document.getElementById('vendas-loading').style.display = 'block';
+      document.getElementById('vendas-loading').innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-text">${esc(res?.mensagem||'Erro ao carregar vendas.')}</div>`;
+      return;
+    }
+    _vendasCarregado = true;
+    _todosVendedores = res.vendedores || [];
+    _todosProdutos   = res.produtos   || [];
+
+    setSubAbaVendas('dashboard');
+    _montarCardsVertical(res.resumoMes || []);
+    _montarGraficoMensal(res.resumoMes || []);
+    _montarGraficoDiario(res.vendaDiaria || []);
+    _montarGraficoAnual(res.compAnual || []);
+    _montarPainelVendedores(_todosVendedores);
+    _montarPainelProdutos(_todosProdutos);
+  } catch(e) {
+    document.getElementById('vendas-loading').style.display = 'block';
+    document.getElementById('vendas-loading').innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div>`;
+  }
+}
+
+function _montarCardsVertical(resumoMes) {
+  const el = document.getElementById('v-cards-vertical');
+  el.innerHTML = '';
+  if (!resumoMes.length) { el.innerHTML = '<div class="empty"><div class="empty-text">Sem dados em RESUMO_MES.</div></div>'; return; }
+  const tot = resumoMes.reduce((s,r) => s + (r.Faturamento||0), 0);
+  const totClear = resumoMes.reduce((s,r) => s + (r.CLEAR||0), 0);
+  const totVtv   = resumoMes.reduce((s,r) => s + (r.VTV||0), 0);
+  const totOm    = resumoMes.reduce((s,r) => s + (r.OM||0), 0);
+  el.appendChild(_criarCardVendas('blue', 'Faturamento Total', fmtBrl(tot), resumoMes.length + ' meses'));
+  el.appendChild(_criarCardVendas('blue', 'CLEAR', fmtBrl(totClear), tot ? (totClear/tot*100).toFixed(1)+'% do total' : ''));
+  el.appendChild(_criarCardVendas('yellow', 'VTV', fmtBrl(totVtv), tot ? (totVtv/tot*100).toFixed(1)+'% do total' : ''));
+  el.appendChild(_criarCardVendas('teal', 'O&M', fmtBrl(totOm), tot ? (totOm/tot*100).toFixed(1)+'% do total' : ''));
+}
+
+function _montarGraficoMensal(resumoMes) {
+  if (!resumoMes.length) return;
+  const labels = resumoMes.map(r => r.Mes_label);
+  const ctx = document.getElementById('v-grafico-mensal').getContext('2d');
+  if (_graficoMensal) _graficoMensal.destroy();
+  _graficoMensal = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label:'CLEAR', data: resumoMes.map(r=>r.CLEAR||0), backgroundColor:'rgba(26,115,232,0.8)' },
+      { label:'VTV',   data: resumoMes.map(r=>r.VTV||0),   backgroundColor:'rgba(202,138,4,0.8)' },
+      { label:'O&M',   data: resumoMes.map(r=>r.OM||0),    backgroundColor:'rgba(26,92,90,0.8)' },
+    ]},
+    options: { responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } } },
+      scales:{ x:{stacked:true}, y:{stacked:true, ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } } },
+  });
+}
+
+function _montarGraficoDiario(vendaDiaria) {
+  const el = document.getElementById('v-cards-diario');
+  el.innerHTML = '';
+  if (!vendaDiaria.length) { el.innerHTML = '<div class="empty"><div class="empty-text">Sem dados em Venda_Diaria.</div></div>'; return; }
+  const fatTotal = vendaDiaria.reduce((s,d)=>s+(d.Faturamento||0),0);
+  const media = fatTotal / vendaDiaria.length;
+  let melhorDia = vendaDiaria[0];
+  vendaDiaria.forEach(d => { if (d.Faturamento > melhorDia.Faturamento) melhorDia = d; });
+  el.appendChild(_criarCardVendas('green', 'Faturamento do Mês', fmtBrl(fatTotal), vendaDiaria.length + ' dias com venda'));
+  el.appendChild(_criarCardVendas('orange', 'Média Diária', fmtBrl(media)));
+  el.appendChild(_criarCardVendas('purple', 'Melhor Dia', 'Dia ' + melhorDia.Dia, fmtBrl(melhorDia.Faturamento)));
+
+  const labels = vendaDiaria.map(d => 'Dia '+d.Dia);
+  const ctx = document.getElementById('v-grafico-diario').getContext('2d');
+  if (_graficoDiario) _graficoDiario.destroy();
+  _graficoDiario = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ label:'Faturamento', data: vendaDiaria.map(d=>d.Faturamento||0),
+      borderColor:'#1a5c5a', backgroundColor:'rgba(26,92,90,0.15)', tension:.2, fill:true }] },
+    options: { responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>'Faturamento: '+fmtBrl(c.parsed.y) } } },
+      scales:{ y:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } } },
+  });
+}
+
+function _montarGraficoAnual(compAnual) {
+  if (!compAnual.length) return;
+  const labels = compAnual.map(r => r.Mes_label);
+  const ctx = document.getElementById('v-grafico-anual').getContext('2d');
+  if (_graficoAnual) _graficoAnual.destroy();
+  _graficoAnual = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [
+      { label:'2024', data: compAnual.map(r=>r.A2024||0), borderColor:'#9e9e9e', backgroundColor:'rgba(158,158,158,.1)', tension:.2, fill:true },
+      { label:'2025', data: compAnual.map(r=>r.A2025||0), borderColor:'#1a73e8', backgroundColor:'rgba(26,115,232,.1)', tension:.2, fill:true },
+      { label:'2026', data: compAnual.map(r=>r.A2026||0), borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,.1)', tension:.2, fill:true },
+    ]},
+    options: { responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } } },
+      scales:{ y:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } } } },
+  });
+}
+
+function _montarPainelVendedores(vendedores) {
+  const cardsEl = document.getElementById('v-cards-vendedores');
+  cardsEl.innerHTML = '';
+  if (!vendedores.length) { cardsEl.innerHTML = '<div class="empty"><div class="empty-text">Sem dados na aba Vendedor.</div></div>'; return; }
+
+  const totalGeral = vendedores.reduce((s,v)=>s+(v.FatTotal||0),0);
+  cardsEl.appendChild(_criarCardVendas('blue', 'Total Geral', fmtBrl(totalGeral), vendedores.length+' vendedores'));
+  cardsEl.appendChild(_criarCardVendas('orange', 'Top Vendedor', esc(vendedores[0].Vendedor), fmtBrl(vendedores[0].FatTotal)));
+
+  const tbody = document.getElementById('v-tabela-vendedores');
+  tbody.innerHTML = vendedores.map((v, idx) => {
+    const pos = idx+1, fat = v.FatTotal||0;
+    const perc = totalGeral ? (fat/totalGeral*100).toFixed(1) : '0.0';
+    const bc = v.Vertical==='CLEAR' ? 'clear' : v.Vertical==='VTV' ? 'vtv' : 'om';
+    const rc = pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
+    return `<tr>
+      <td><span class="rank-num ${rc}">${pos}</span></td>
+      <td>${esc(v.Vendedor)}</td>
+      <td><span class="badge-vertical ${bc}">${esc(v.Vertical)}</span></td>
+      <td class="num">${fmtBrl(fat)}</td>
+      <td class="num">${perc}%</td>
+    </tr>`;
+  }).join('');
+
+  const top = vendedores.slice(0,10);
+  const cores = top.map(v => v.Vertical==='CLEAR' ? '#1a73e8' : v.Vertical==='VTV' ? '#ca8a04' : '#16a34a');
+  const ctx = document.getElementById('v-grafico-top-vendedores').getContext('2d');
+  if (_graficoTopVend) _graficoTopVend.destroy();
+  _graficoTopVend = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: top.map(v=>v.Vendedor), datasets: [{ label:'Faturamento', data: top.map(v=>v.FatTotal||0), backgroundColor: cores }] },
+    options: { indexAxis:'y', responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>'Faturamento: '+fmtBrl(c.parsed.x) } } },
+      scales:{ x:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } }, y:{ ticks:{ autoSkip:false } } } },
+  });
+
+  const sel = document.getElementById('v-select-vendedor');
+  sel.innerHTML = vendedores.map(v => `<option value="${esc(v.Vendedor)}">${esc(v.Vendedor)} (${esc(v.Vertical)})</option>`).join('');
+  sel.value = vendedores[0].Vendedor;
+  atualizarEvolucaoVendedor();
+}
+
+function atualizarEvolucaoVendedor() {
+  const sel = document.getElementById('v-select-vendedor');
+  if (!sel || !_todosVendedores.length) return;
+  const vend = _todosVendedores.find(v => v.Vendedor === sel.value);
+  if (!vend) return;
+  const meses = _sortMeses(Object.keys(vend.FatMeses));
+  const vals  = meses.map(m => vend.FatMeses[m]||0);
+
+  const ctx = document.getElementById('v-grafico-evolucao-vendedor').getContext('2d');
+  if (_graficoEvolVend) _graficoEvolVend.destroy();
+  _graficoEvolVend = new Chart(ctx, {
+    type: 'line',
+    data: { labels: meses, datasets: [{ label:'Faturamento', data: vals, borderColor:'#1a5c5a', backgroundColor:'rgba(26,92,90,.15)', tension:.2, fill:true }] },
+    options: { responsive:true, plugins:{ legend:{display:false} } },
+  });
+}
+
+function _montarPainelProdutos(produtos) {
+  const cardsEl = document.getElementById('v-cards-produtos');
+  cardsEl.innerHTML = '';
+  if (!produtos.length) { cardsEl.innerHTML = '<div class="empty"><div class="empty-text">Sem dados na aba Produto.</div></div>'; return; }
+
+  const totalVal = produtos.reduce((s,p)=>s+(p.FatTotal||0),0);
+  const totalQtd = produtos.reduce((s,p)=>s+(p.QtdeTotal||0),0);
+  const precoMedio = totalQtd>0 ? totalVal/totalQtd : 0;
+
+  cardsEl.appendChild(_criarCardVendas('blue', 'Qtde Produtos', fmtNum(produtos.length), 'linhas na aba Produto'));
+  cardsEl.appendChild(_criarCardVendas('green', 'Valor Total', fmtBrl(totalVal), 'soma geral'));
+  cardsEl.appendChild(_criarCardVendas('teal', 'Qtde Total', fmtNum(totalQtd), 'unidades'));
+  cardsEl.appendChild(_criarCardVendas('purple', 'Preço Médio', fmtBrl(precoMedio), 'geral'));
+
+  const lista = produtos.slice(0,50);
+  const tbody = document.getElementById('v-tabela-produtos');
+  tbody.innerHTML = lista.map((p, idx) => {
+    const tags = (p.Projeto?`<span class="tag-projeto">${esc(p.Projeto)}</span>`:'') +
+                 (p.Grupo?`<span class="tag-grupo">${esc(p.Grupo)}</span>`:'') +
+                 (p.Familia?`<span class="tag-familia">${esc(p.Familia)}</span>`:'');
+    const fotoHtml = p.Foto
+      ? `<img class="foto-produto-vendas" src="${esc(p.Foto)}" onerror="this.outerHTML='<div class=&quot;foto-placeholder-vendas&quot;>📷</div>'">`
+      : '<div class="foto-placeholder-vendas">📷</div>';
+    let desc = p.Descricao || '';
+    if (desc.length > 70) desc = desc.substring(0,70)+'...';
+    return `<tr>
+      <td>${idx+1}</td>
+      <td>${fotoHtml}</td>
+      <td class="mono">${esc(p.Codigo)}</td>
+      <td>${esc(desc)}</td>
+      <td>${tags}</td>
+      <td class="num">${fmtBrl(p.FatTotal||0)}</td>
+      <td class="num">${fmtNum(p.QtdeTotal||0)}</td>
+      <td class="num">${fmtBrl(p.PrecoMedio||0)}</td>
+    </tr>`;
+  }).join('');
+
+  const top = produtos.slice(0,10);
+  const cores = top.map(p => p.Grupo==='CLEAR VEICULAR' ? '#1a73e8' : p.Grupo==='VTV CFTV' ? '#ca8a04' : '#16a34a');
+  const ctx = document.getElementById('v-grafico-top-produtos').getContext('2d');
+  if (_graficoTopProd) _graficoTopProd.destroy();
+  _graficoTopProd = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: top.map(p=>p.Codigo), datasets: [{ label:'Faturamento', data: top.map(p=>p.FatTotal||0), backgroundColor: cores }] },
+    options: { indexAxis:'y', responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>'Faturamento: '+fmtBrl(c.parsed.x) } } },
+      scales:{ x:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } }, y:{ ticks:{ autoSkip:false } } } },
+  });
 }
 
 // ══════════════════════════════════════════════════════
