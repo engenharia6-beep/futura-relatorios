@@ -89,13 +89,16 @@
     .table-wrap{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);overflow-x:auto}
     .table-info{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)}
     .table-info strong{color:var(--text)}
-    table{width:100%;min-width:max-content;border-collapse:collapse;font-size:12px}
+    table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
     thead tr{background:#f0f6f6}
-    th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+    th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;max-width:380px}
     th:hover{color:var(--accent)}
     th .sort-icon{margin-left:4px;opacity:.4}
     th.sorted .sort-icon{opacity:1;color:var(--accent)}
-    td{padding:9px 12px;border-bottom:1px solid #eef2f2;color:var(--text);vertical-align:middle}
+    td{padding:9px 12px;border-bottom:1px solid #eef2f2;color:var(--text);vertical-align:middle;max-width:320px;overflow-wrap:break-word;word-break:break-word}
+    td.desc{min-width:200px;max-width:380px;white-space:normal;line-height:1.4}
+    td.col-sm{max-width:90px}
+    td.col-md{max-width:140px}
     tr:last-child td{border-bottom:none}
     tr:hover td{background:#f8fbfb}
     td.mono{font-family:var(--mono);font-size:11px}
@@ -866,7 +869,7 @@ function _rowMov(m) {
     <td>${esc(m._origem||'')}</td>
     <td><span class="badge-${(m.tipo||'').toLowerCase()==='entrada'?'entrada':'saida'}">${esc(m.tipo||'')}</span></td>
     <td class="mono">${esc(m.codigo||'')}</td>
-    <td>${esc(m.descricao||'')}</td>
+    <td class="desc">${esc(m.descricao||'')}</td>
     <td class="num ${(m.tipo||'').toUpperCase()==='ENTRADA'?'pos':'neg'}">${fmtNum(m.qtde)}</td>
     <td class="mono">${esc(m.op||'')}</td>
     <td>${esc(m.usuario||'')}</td>
@@ -980,7 +983,7 @@ function filtrarEstoqueInsumos() {
                        i.estoqueAtual <= (i.estoqueMin||0) ? ['crítico','badge-baixo'] : ['ok','badge-ok'];
         return `<tr>
           <td class="mono">${esc(i.codigo)}</td>
-          <td>${esc(i.descricao)}</td>
+          <td class="desc">${esc(i.descricao)}</td>
           <td style="color:#4a6a6a;font-size:11px">${esc(i.tipo||'')}</td>
           <td class="num ${i.estoqueAtual<=0?'neg':i.estoqueAtual<=(i.estoqueMin||0)?'warn':'pos'}">${fmtNum(i.estoqueAtual)}</td>
           <td class="num">${fmtNum(i.estoqueMin||0)}</td>
@@ -1046,7 +1049,7 @@ function filtrarEstoquePA() {
                        i.estoqueAtual <= (i.estoqueMin||0) ? ['crítico','badge-baixo'] : ['ok','badge-ok'];
         return `<tr>
           <td class="mono">${esc(i.codigo)}</td>
-          <td>${esc(i.descricao)}</td>
+          <td class="desc">${esc(i.descricao)}</td>
           <td style="color:#4a6a6a;font-size:11px">${esc(i.familia||'')}</td>
           <td class="num ${i.estoqueAtual<=0?'neg':i.estoqueAtual<=(i.estoqueMin||0)?'warn':'pos'}">${fmtNum(i.estoqueAtual)}</td>
           <td class="num">${fmtNum(i.estoqueMin||0)}</td>
@@ -1068,7 +1071,7 @@ function _renderOpsRows(ops) {
     <td class="mono">${esc(o.op||'')}</td>
     <td class="mono">${esc(o.pedido||'')}</td>
     <td class="mono">${esc(o.codigo||'')}</td>
-    <td>${esc(o.descricao||'')}</td>
+    <td class="desc">${esc(o.descricao||'')}</td>
     <td class="num">${fmtNum(o.qtde)}</td>
     <td><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(26,92,90,.1);color:#1a5c5a">${esc(o.origem||'—')}</span></td>
     <td><span class="${o.estado==='PAGO'?'badge-ok':o.estado==='EM_BAIXA'?'badge-b':'badge-critico'}">${esc(o.estado||'')}</span></td>
@@ -1084,7 +1087,7 @@ function _renderAbcRows(itens) {
     <td class="mono" style="color:#4a6a6a">${i.rank}</td>
     <td><span class="badge-${i.classe.toLowerCase()}">${i.classe}</span></td>
     <td class="mono">${esc(i.codigo)}</td>
-    <td>${esc(i.descricao)}</td>
+    <td class="desc">${esc(i.descricao)}</td>
     <td style="font-size:11px;color:#4a6a6a">${esc(i._origem||'')}</td>
     <td class="num">${fmtNum(i.valor)}</td>
     <td class="num">${i.pctAcum.toFixed(1)}%</td>
@@ -1159,7 +1162,7 @@ async function gerarOPs() {
           <td class="mono">${esc(o.op||'')}</td>
           <td class="mono">${esc(o.pedido||'')}</td>
           <td class="mono">${esc(o.codigo||'')}</td>
-          <td>${esc(o.descricao||'')}</td>
+          <td class="desc">${esc(o.descricao||'')}</td>
           <td class="num">${fmtNum(o.qtde)}</td>
           <td><span class="badge-${o.isPA?'entrada':'saida'}" style="background:${o.isPA?'rgba(15,110,86,.12)':'rgba(26,92,90,.12)'};color:${o.isPA?'#0f6e56':'#1a5c5a'}">${esc(o.origem||'—')}</span></td>
           <td><span class="${o.estado==='PAGO'?'badge-ok':o.estado==='EM_BAIXA'?'badge-b':'badge-critico'}">${esc(o.estado||'')}</span></td>
@@ -1242,7 +1245,7 @@ async function gerarABC() {
           <td class="mono" style="color:#4a6a6a">${i.rank}</td>
           <td><span class="badge-${i.classe.toLowerCase()}">${i.classe}</span></td>
           <td class="mono">${esc(i.codigo)}</td>
-          <td>${esc(i.descricao)}</td>
+          <td class="desc">${esc(i.descricao)}</td>
           <td style="font-size:11px;color:#4a6a6a">${esc(i._origem||'')}</td>
           <td class="num">${fmtNum(i.valor)}</td>
           <td class="num">${i.pctAcum.toFixed(1)}%</td>
@@ -1604,7 +1607,7 @@ function _renderListaCompras(dados, modo = 'criticos') {
         </tr></thead>
         <tbody>${dados.map(i => `<tr ${i.faltaComprar<=0?'style="opacity:.6"':''}>
           <td class="mono">${esc(i.codigo)}</td>
-          <td>${esc(i.descricao)}</td>
+          <td class="desc">${esc(i.descricao)}</td>
           <td class="num">${fmtNum(i.necessario)}</td>
           <td class="num ${i.saldoAtual<=0?'neg':'pos'}">${fmtNum(i.saldoAtual)}</td>
           <td class="num">${fmtNum(i.temNoEstoque)}</td>
@@ -1630,7 +1633,7 @@ function _renderListaCompras(dados, modo = 'criticos') {
         <tbody>${dados.map(i => `<tr>
           <td><span class="${i.saldoAtual<=0?'badge-critico':i.criterio.includes('Mínimo')?'badge-baixo':'badge-b'}">${esc(i.criterio)}</span></td>
           <td class="mono">${esc(i.codigo)}</td>
-          <td>${esc(i.descricao)}</td>
+          <td class="desc">${esc(i.descricao)}</td>
           <td style="font-size:11px;color:#4a6a6a">${esc(i.tipo)}</td>
           <td class="num ${i.saldoAtual<=0?'neg':'warn'}">${fmtNum(i.saldoAtual)}</td>
           <td class="num">${fmtNum(i.estoqueMin)}</td>
@@ -1763,7 +1766,7 @@ function _renderFechamento(linhas) {
         </tr></thead>
         <tbody>${linhas.map(l => `<tr>
           <td class="mono">${esc(l.codigo)}</td>
-          <td>${esc(l.descricao)}</td>
+          <td class="desc">${esc(l.descricao)}</td>
           <td style="font-size:11px;color:#4a6a6a">${esc(l.um)}</td>
           <td class="mono" style="font-size:11px">${esc(l.portaria)}</td>
           <td class="mono" style="font-size:11px">${esc(l.ncm)}</td>
@@ -1794,7 +1797,7 @@ function _renderFechamento(linhas) {
         </tr></thead>
         <tbody>${linhas.map(l => `<tr>
           <td class="mono">${esc(l.codigo)}</td>
-          <td>${esc(l.descricao)}</td>
+          <td class="desc">${esc(l.descricao)}</td>
           <td style="font-size:11px;color:#4a6a6a">${esc(l.projeto)}</td>
           <td class="mono" style="font-size:11px">${esc(l.ncm)}</td>
           <td class="mono" style="font-size:11px">${esc(l.endereco)}</td>
