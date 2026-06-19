@@ -246,10 +246,7 @@
             Escolher arquivo PDF
             <input id="doc-file-input" type="file" accept="application/pdf" onchange="carregarGuiaPDF(event)" style="display:none">
           </label>
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
-            📊 Apresentação da Gestão
-            <input id="apres-file-input" type="file" accept="application/pdf" onchange="carregarApresentacaoPDF(event)" style="display:none">
-          </label>
+          <button class="btn btn-secondary btn-sm" onclick="abrirApresentacao()">📊 Apresentação da Gestão</button>
           <button class="btn btn-primary btn-sm" onclick="abrirDocOriginal()">Abrir Docs original</button>
         </div>
       </div>
@@ -1068,14 +1065,8 @@ function carregarGuiaPDF(event) {
   `;
 }
 
-function carregarApresentacaoPDF(event) {
-  const file = event.target?.files?.[0];
-  if (!file) return;
-  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-    alert('Por favor escolha um arquivo PDF.');
-    return;
-  }
-  const url = URL.createObjectURL(file);
+function abrirApresentacao() {
+  const url = 'apresentacao.pdf';
   const preview = document.getElementById('modal-guia-preview');
   preview.innerHTML = `
     <object type="application/pdf" data="${url}" width="100%" height="100%">
