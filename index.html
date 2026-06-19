@@ -2099,7 +2099,7 @@ function _normalizarFotoUrlFechamento(url) {
   else if (mFile) id = mFile[1];
   else if (/^[\w-]{25,}$/.test(u)) id = u;
   if (!id) return '';
-  return `https://lh3.googleusercontent.com/d/${id}`;
+  return `https://drive.google.com/thumbnail?sz=w120&id=${id}`;
 }
 
 function _fotoFechamentoHtml(fotoRef) {
