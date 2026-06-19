@@ -637,7 +637,8 @@
         </div>
         <button class="btn btn-primary btn-sm" onclick="gerarExtrato()" style="margin-top:20px">🔍 Gerar</button>
       </div>
-      <div id="ext-resumo" style="display:none;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:4px">
+      <div id="ext-resumo" style="display:none;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;display:grid;grid-template-columns:64px repeat(4,1fr);gap:12px;margin-bottom:4px;align-items:center">
+        <div id="ext-foto" style="display:flex;align-items:center;justify-content:center"></div>
         <div style="text-align:center">
           <div style="font-size:22px;font-weight:800;color:var(--accent)" id="ext-saldo-atual">—</div>
           <div style="font-size:11px;color:#4a6a6a;margin-top:4px">Saldo atual</div>
@@ -1125,6 +1126,7 @@ async function gerarMovimentos() {
 // Renderiza linhas de movimentos
 function _rowMov(m) {
   return `<tr>
+    <td>${_fotoFechamentoHtml(m.foto||'')}</td>
     <td class="mono">${esc(m.data||'')}</td>
     <td>${esc(m._origem||'')}</td>
     <td><span class="badge-${(m.tipo||'').toLowerCase()==='entrada'?'entrada':'saida'}">${esc(m.tipo||'')}</span></td>
@@ -1173,6 +1175,7 @@ function renderMovimentos(movs) {
   document.getElementById('mov-table-body').innerHTML = `
     <table>
       <thead><tr>
+        <th>Foto</th>
         ${_thSort('movimentos','data','Data/Hora')}
         ${_thSort('movimentos','_origem','Origem')}
         ${_thSort('movimentos','tipo','Tipo')}
@@ -1231,6 +1234,7 @@ function filtrarEstoqueInsumos() {
   document.getElementById('ei-table-body').innerHTML = `
     <table>
       <thead><tr>
+        <th>Foto</th>
         ${_thSort('estoque-insumos','codigo','Código')}
         ${_thSort('estoque-insumos','descricao','Descrição')}
         ${_thSort('estoque-insumos','tipo','Tipo')}
@@ -1242,6 +1246,7 @@ function filtrarEstoqueInsumos() {
         const status = i.estoqueAtual <= 0 ? ['zerado','badge-critico'] :
                        i.estoqueAtual <= (i.estoqueMin||0) ? ['crítico','badge-baixo'] : ['ok','badge-ok'];
         return `<tr>
+          <td>${_fotoFechamentoHtml(i.foto||'')}</td>
           <td class="mono">${esc(i.codigo)}</td>
           <td class="desc">${esc(i.descricao)}</td>
           <td style="color:#4a6a6a;font-size:11px">${esc(i.tipo||'')}</td>
@@ -1297,6 +1302,7 @@ function filtrarEstoquePA() {
   document.getElementById('ep-table-body').innerHTML = `
     <table>
       <thead><tr>
+        <th>Foto</th>
         ${_thSort('estoque-pa','codigo','Código')}
         ${_thSort('estoque-pa','descricao','Descrição')}
         ${_thSort('estoque-pa','familia','Família')}
@@ -1308,6 +1314,7 @@ function filtrarEstoquePA() {
         const status = i.estoqueAtual <= 0 ? ['zerado','badge-critico'] :
                        i.estoqueAtual <= (i.estoqueMin||0) ? ['crítico','badge-baixo'] : ['ok','badge-ok'];
         return `<tr>
+          <td>${_fotoFechamentoHtml(i.foto||'')}</td>
           <td class="mono">${esc(i.codigo)}</td>
           <td class="desc">${esc(i.descricao)}</td>
           <td style="color:#4a6a6a;font-size:11px">${esc(i.familia||'')}</td>
@@ -1409,6 +1416,7 @@ async function gerarOPs() {
     document.getElementById('ops-table-body').innerHTML = `
       <table>
         <thead><tr>
+          <th>Foto</th>
           ${_thSort('ops','op','OP')}
           ${_thSort('ops','pedido','Pedido')}
           ${_thSort('ops','codigo','Código')}
@@ -1419,6 +1427,7 @@ async function gerarOPs() {
           <th>OBS</th><th>SILK</th>
         </tr></thead>
         <tbody>${ops.map(o => `<tr>
+          <td>${_fotoFechamentoHtml(o.foto||'')}</td>
           <td class="mono">${esc(o.op||'')}</td>
           <td class="mono">${esc(o.pedido||'')}</td>
           <td class="mono">${esc(o.codigo||'')}</td>
@@ -1461,7 +1470,7 @@ async function gerarABC() {
     for (const m of movs) {
       const k = m.codigo;
       if (!k) continue;
-      if (!mapa[k]) mapa[k] = { codigo:k, descricao:m.descricao||'', _origem:m._origem, totalQtde:0, totalMov:0 };
+      if (!mapa[k]) mapa[k] = { codigo:k, descricao:m.descricao||'', _origem:m._origem, foto:m.foto||'', totalQtde:0, totalMov:0 };
       mapa[k].totalQtde += Number(m.qtde||0);
       mapa[k].totalMov  += 1;
     }
@@ -1493,6 +1502,7 @@ async function gerarABC() {
     document.getElementById('abc-table-body').innerHTML = `
       <table>
         <thead><tr>
+          <th>Foto</th>
           ${_thSort('abc','rank','#')}
           ${_thSort('abc','classe','Classe')}
           ${_thSort('abc','codigo','Código')}
@@ -1502,6 +1512,7 @@ async function gerarABC() {
           ${_thSort('abc','pctAcum','% Acumulado','num')}
         </tr></thead>
         <tbody>${itens.map(i => `<tr>
+          <td>${_fotoFechamentoHtml(i.foto||'')}</td>
           <td class="mono" style="color:#4a6a6a">${i.rank}</td>
           <td><span class="badge-${i.classe.toLowerCase()}">${i.classe}</span></td>
           <td class="mono">${esc(i.codigo)}</td>
@@ -1550,6 +1561,7 @@ async function gerarExtrato() {
     const totalEnt  = movs.filter(m=>m.tipo?.toUpperCase()==='ENTRADA').reduce((s,m)=>s+Number(m.qtde||0),0);
     const totalSai  = movs.filter(m=>m.tipo?.toUpperCase()==='SAIDA').reduce((s,m)=>s+Number(m.qtde||0),0);
 
+    document.getElementById('ext-foto').innerHTML = _fotoFechamentoHtml(movs[0]?.foto||'');
     document.getElementById('ext-saldo-atual').textContent = fmtNum(saldo);
     document.getElementById('ext-total-entrada').textContent = fmtNum(totalEnt);
     document.getElementById('ext-total-saida').textContent = fmtNum(totalSai);
