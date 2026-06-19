@@ -187,6 +187,20 @@
     #loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:9999;transition:opacity .3s}
     #loading-overlay.hidden{opacity:0;pointer-events:none}
 
+    /* ── Modal interno ── */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:2000;opacity:0;pointer-events:none;transition:opacity .2s}
+    .modal.visible{opacity:1;pointer-events:auto}
+    .modal-panel{width:min(100%,900px);max-height:min(100%,760px);overflow:hidden;background:#fff;border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.18);display:flex;flex-direction:column}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #e5e7eb}
+    .modal-title{font-size:18px;font-weight:800;color:var(--text)}
+    .modal-close{background:transparent;border:none;font-size:18px;color:var(--text-muted);cursor:pointer}
+    .modal-body{padding:20px;overflow:auto;flex:1;display:grid;grid-template-columns:1fr;gap:18px}
+    .modal-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+    .modal-body p{font-size:14px;color:var(--text-muted);line-height:1.6}
+    .modal-body strong{color:var(--text)}
+    .modal-pdf{width:100%;min-height:320px;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#f8fafc}
+    .modal-pdf object{width:100%;height:100%}
+
     /* ── Chips de PA ── */
     .pa-chip{display:inline-flex;align-items:center;gap:6px;background:#f0f6f6;border:1.5px solid #1a5c5a;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:#1a2e2e}
     .pa-chip button{background:transparent;border:none;color:#4a6a6a;cursor:pointer;font-size:14px;line-height:1;padding:0}
@@ -213,6 +227,38 @@
 </div>
 
 <div id="toast"></div>
+
+<div id="modal-guia" class="modal" aria-hidden="true">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Guia de Documentação</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:4px">Carregue o Guia ou a Apresentação do seu computador, ou abra o documento original.</div>
+      </div>
+      <button class="modal-close" onclick="fecharModalGuia()" aria-label="Fechar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <p>Para usar um arquivo que está na pasta <strong>Downloads</strong>, copie-o para a pasta do projeto ou selecione-o abaixo.</p>
+        <p>Uma vez carregado, o PDF será exibido diretamente dentro do app.</p>
+        <div class="modal-actions">
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+            Escolher arquivo PDF
+            <input id="doc-file-input" type="file" accept="application/pdf" onchange="carregarGuiaPDF(event)" style="display:none">
+          </label>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+            📊 Apresentação da Gestão
+            <input id="apres-file-input" type="file" accept="application/pdf" onchange="carregarApresentacaoPDF(event)" style="display:none">
+          </label>
+          <button class="btn btn-primary btn-sm" onclick="abrirDocOriginal()">Abrir Docs original</button>
+        </div>
+      </div>
+      <div id="modal-guia-preview" class="modal-pdf">
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:14px;">Nenhum PDF carregado.</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ══ LOGIN ══ -->
 <div id="page-login">
@@ -310,6 +356,13 @@
           <div class="rel-card-title">Dashboard de Vendas</div>
           <div class="rel-card-desc">Faturamento por vertical, ranking de vendedores e produtos, comparação anual e evolução mensal — dados da planilha de vendas.</div>
           <div><span class="rel-card-badge" style="background:rgba(13,148,136,.15);color:#0d7a6e">Vendas</span></div>
+        </div>
+
+        <div class="rel-card" onclick="abrirModalGuia()" style="border-color:rgba(14,165,233,.3);background:rgba(14,165,233,.03)">
+          <div class="rel-card-icon">📄</div>
+          <div class="rel-card-title">Guia de Documentação</div>
+          <div class="rel-card-desc">Abra um modal interno para carregar o PDF e consultar o guia dentro do app.</div>
+          <div><span class="rel-card-badge" style="background:rgba(14,165,233,.15);color:#0ea5e9">Docs</span></div>
         </div>
 
       </div>
@@ -979,6 +1032,63 @@ function abrirRelatorio(id) {
     'fechamento':       '📅 Fechamento Mensal',
     'vendas':           '💹 Dashboard de Vendas',
   }[id] || 'Relatórios';
+}
+
+function abrirModalGuia() {
+  const modal = document.getElementById('modal-guia');
+  modal.classList.add('visible');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function fecharModalGuia() {
+  const modal = document.getElementById('modal-guia');
+  modal.classList.remove('visible');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function carregarGuiaPDF(event) {
+  const input = event.target;
+  const file = input?.files?.[0];
+  if (!file) return;
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (!isPdf) {
+    alert('Por favor escolha um arquivo PDF.');
+    return;
+  }
+
+  const url = URL.createObjectURL(file);
+  const preview = document.getElementById('modal-guia-preview');
+  preview.innerHTML = `
+    <object type="application/pdf" data="${url}" width="100%" height="100%">
+      <iframe src="${url}" width="100%" height="100%" style="border:none"></iframe>
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px;color:var(--text-muted);font-size:14px;">
+        Seu navegador não suporta visualização de PDF. <a href="${url}" target="_blank" rel="noopener" style="margin-left:6px;color:var(--accent);text-decoration:underline;">Abrir PDF em nova aba</a>.
+      </div>
+    </object>
+  `;
+}
+
+function carregarApresentacaoPDF(event) {
+  const file = event.target?.files?.[0];
+  if (!file) return;
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    alert('Por favor escolha um arquivo PDF.');
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const preview = document.getElementById('modal-guia-preview');
+  preview.innerHTML = `
+    <object type="application/pdf" data="${url}" width="100%" height="100%">
+      <iframe src="${url}" width="100%" height="100%" style="border:none"></iframe>
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px;color:var(--text-muted);font-size:14px;">
+        Seu navegador não suporta visualização de PDF. <a href="${url}" target="_blank" rel="noopener" style="margin-left:6px;color:var(--accent);text-decoration:underline;">Abrir PDF em nova aba</a>.
+      </div>
+    </object>
+  `;
+}
+
+function abrirDocOriginal() {
+  window.open('https://docs.google.com/document/d/1z5jNd_EXHOExuxjZ9Yneoq53MT1BpvoKel6c1ir24qM/edit?tab=t.0#heading=h.e3w95dujh3p8', '_blank', 'noopener');
 }
 
 function voltarMenu() {
