@@ -490,6 +490,12 @@
           </select>
         </div>
         <div class="filtro-group">
+          <label>Vertical</label>
+          <select id="ep-vertical" onchange="filtrarEstoquePA()">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="filtro-group">
           <label>Família</label>
           <select id="ep-familia" onchange="filtrarEstoquePA()">
             <option value="">Todas</option>
@@ -1285,9 +1291,12 @@ async function gerarEstoquePA() {
     const res = await api('listarCadastroPA', { filtroSituacao: 'ATIVO' });
     const itens = Array.isArray(res) ? res : [];
     _dadosRel['estoque-pa'] = itens;
+    const verticais = [...new Set(itens.map(i => i.vertical).filter(Boolean))].sort();
+    const selV = document.getElementById('ep-vertical');
+    selV.innerHTML = '<option value="">Todas</option>' + verticais.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
     const familias = [...new Set(itens.map(i => i.familia).filter(Boolean))].sort();
-    const sel = document.getElementById('ep-familia');
-    sel.innerHTML = '<option value="">Todas</option>' + familias.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+    const selF = document.getElementById('ep-familia');
+    selF.innerHTML = '<option value="">Todas</option>' + familias.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
     filtrarEstoquePA();
   } catch(e) {
     document.getElementById('ep-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
@@ -1295,15 +1304,17 @@ async function gerarEstoquePA() {
 }
 
 function filtrarEstoquePA() {
-  const dados   = _dadosRel['estoque-pa'] || [];
-  const busca   = document.getElementById('ep-busca').value.trim().toLowerCase();
-  const status  = document.getElementById('ep-status').value;
-  const familia = document.getElementById('ep-familia').value;
-  const termos  = busca.split(/\s+/).filter(Boolean);
+  const dados    = _dadosRel['estoque-pa'] || [];
+  const busca    = document.getElementById('ep-busca').value.trim().toLowerCase();
+  const status   = document.getElementById('ep-status').value;
+  const vertical = document.getElementById('ep-vertical').value;
+  const familia  = document.getElementById('ep-familia').value;
+  const termos   = busca.split(/\s+/).filter(Boolean);
 
   let filtrado = dados.filter(i => {
     if (termos.length && !termos.every(t => i.codigo?.toLowerCase().includes(t) || i.descricao?.toLowerCase().includes(t))) return false;
-    if (familia && i.familia !== familia) return false;
+    if (vertical && i.vertical !== vertical) return false;
+    if (familia  && i.familia  !== familia)  return false;
     if (status === 'zerado'  && i.estoqueAtual > 0) return false;
     if (status === 'critico' && (i.estoqueAtual > (i.estoqueMin||0) || i.estoqueAtual <= 0)) return false;
     if (status === 'ok'      && i.estoqueAtual <= (i.estoqueMin||0)) return false;
@@ -1322,6 +1333,7 @@ function filtrarEstoquePA() {
         <th>Foto</th>
         ${_thSort('estoque-pa','codigo','Código')}
         ${_thSort('estoque-pa','descricao','Descrição')}
+        ${_thSort('estoque-pa','vertical','Vertical')}
         ${_thSort('estoque-pa','familia','Família')}
         ${_thSort('estoque-pa','estoqueAtual','Saldo','num')}
         ${_thSort('estoque-pa','estoqueMin','Mínimo','num')}
@@ -1334,6 +1346,7 @@ function filtrarEstoquePA() {
           <td>${_fotoFechamentoHtml(i.foto||'')}</td>
           <td class="mono">${esc(i.codigo)}</td>
           <td class="desc">${esc(i.descricao)}</td>
+          <td style="color:#4a6a6a;font-size:11px">${esc(i.vertical||'')}</td>
           <td style="color:#4a6a6a;font-size:11px">${esc(i.familia||'')}</td>
           <td class="num ${i.estoqueAtual<=0?'neg':i.estoqueAtual<=(i.estoqueMin||0)?'warn':'pos'}">${fmtNum(i.estoqueAtual)}</td>
           <td class="num">${fmtNum(i.estoqueMin||0)}</td>
@@ -1624,13 +1637,13 @@ async function gerarExtrato() {
 //  EXPORTAR EXCEL — via SheetJS CDN
 // ══════════════════════════════════════════════════════
 function exportarExcel(rel) {
-  const dados = _dadosRel[rel];
+  const dados = _dadosRel[rel + '-filtrado'] || _dadosRel[rel];
   if (!dados?.length) { toast('Gere o relatório antes de exportar.', 'warn'); return; }
 
   const mapeamentos = {
     movimentos:        ['data','_origem','tipo','codigo','descricao','qtde','op','usuario','obs'],
     'estoque-insumos': ['codigo','descricao','tipo','estoqueAtual','estoqueMin','endereco'],
-    'estoque-pa':      ['codigo','descricao','familia','estoqueAtual','estoqueMin','endereco'],
+    'estoque-pa':      ['codigo','descricao','vertical','familia','estoqueAtual','estoqueMin','endereco'],
     ops:               ['op','pedido','codigo','descricao','qtde','origem','estado','obs','silk'],
     abc:               ['rank','classe','codigo','descricao','_origem','valor','pctAcum'],
     extrato:           ['data','tipo','qtde','saldoApos','op','usuario','obs'],
