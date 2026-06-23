@@ -106,6 +106,6 @@ Acesse https://script.google.com/home/usersettings e ative **Google Apps Script 
 
 ## Documentação / Apresentação
 O modal **Guia de Documentação** (card no menu) contém:
-- **Escolher arquivo PDF** — carrega o Guia de uso manualmente
-- **Apresentação da Gestão** — abre `apresentacao.pdf` (arquivo no repositório) em nova aba
+- **Escolher arquivo PDF** — carrega o Guia de uso a partir de um arquivo local
+- **📊 Apresentação da Gestão** — carrega a Apresentação da Gestão a partir de um arquivo local
 - **Abrir Docs original** — abre o Google Docs da documentação
