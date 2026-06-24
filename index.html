@@ -2349,12 +2349,12 @@ function _renderCenarioKPIs(resumo) {
 
 function _renderCenarioTabela(tabela) {
   const up = s => String(s||'').toUpperCase();
-  const n  = v => v !== 0 ? fmtNum(v) : '<span style="color:#bbb">0</span>';
+  const n  = v => v !== 0 ? fmtNum(v) : '<span style="color:#ccc;font-size:10px">0</span>';
   const p  = 'padding:4px 7px;white-space:nowrap;font-size:11px;';
 
   const COR = {
     'AG. IMPORTAÇÃO':['#cc0000','#fff'], 'AG. IMPORTACAO':['#cc0000','#fff'],
-    'ENGENHARIA':['#ea9999','#000'], 'PENDENCIA COMERCIAL':['#ea9999','#000'], 'FINANCEIRO':['#ea9999','#000'],
+    'ENGENHARIA':['#ea9999','#000'], 'PENDENCIA COMERCIAL':['#ea9999','#000'], 'FINANCEIRO':['#e06c00','#fff'],
     'SILK':['#ffe599','#000'], 'ATENDER POR SP':['#ffe599','#000'], 'PCP':['#ffe599','#000'], 'ESTOQUE':['#ffe599','#000'],
     'PRODUÇÃO':['#b6d7a8','#000'], 'PRODUCAO':['#b6d7a8','#000'], 'QUALIDADE':['#b6d7a8','#000'],
     'CONSOLIDAÇÃO':['#6aa84f','#fff'], 'CONSOLIDACAO':['#6aa84f','#fff'],
