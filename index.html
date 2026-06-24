@@ -947,25 +947,34 @@
         </div>
       </div>
 
-      <!-- Etapas + Gráfico Anual -->
+      <!-- BLOCO 1: Etapas + BLOCO 2: Gráfico Anual -->
       <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
-        <div style="flex:1;min-width:400px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:8px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Etapas de Pedidos</div>
+        <!-- Bloco 1: Etapas -->
+        <div style="flex:1;min-width:380px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
           <div id="cenario-tabela" style="overflow-x:auto">
             <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Clique em Atualizar</div></div>
           </div>
         </div>
-        <div style="flex:0 0 340px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:8px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Faturamento Mensal — CLEAR / VTV / O&M</div>
-          <div style="padding:10px">
-            <canvas id="cenario-grafico-anual" height="260"></canvas>
+        <!-- Bloco 2: Gráfico Anual + Resumo -->
+        <div style="flex:0 0 480px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
+          <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Gráficos de Acompanhamento de Vendas Anuais</div>
+          <div style="display:flex;gap:10px;padding:10px;align-items:center">
+            <div style="flex:1"><canvas id="cenario-grafico-anual" height="220"></canvas></div>
+            <div id="cenario-resumo" style="min-width:130px;flex-shrink:0"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- BLOCO 3: Totais de Pedidos -->
+      <div style="background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
+        <div id="cenario-pedidos-totais" style="overflow-x:auto">
+          <div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Clique em Atualizar</div></div>
         </div>
       </div>
 
       <!-- Gráfico Diário -->
       <div style="background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-        <div style="padding:10px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Vendas Diárias — <span id="cenario-mes-label">mês atual</span></div>
+        <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Vendas Diárias — <span id="cenario-mes-label">mês atual</span></div>
         <div style="padding:14px">
           <canvas id="cenario-grafico-diario" height="70"></canvas>
         </div>
@@ -974,7 +983,7 @@
       <!-- Pedidos Faturáveis + Importação -->
       <div style="display:flex;gap:14px;flex-wrap:wrap">
         <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:10px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">
+          <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">
             Pedidos — <span style="color:#16a34a">■ Faturável</span> / <span style="color:#ea580c">■ Não Faturável</span>
           </div>
           <div id="cenario-pedidos" style="overflow-x:auto">
@@ -982,7 +991,7 @@
           </div>
         </div>
         <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:10px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Pedidos Aguardando Importação</div>
+          <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Pedidos Aguardando Importação</div>
           <div id="cenario-importacao" style="overflow-x:auto">
             <div class="empty"><div class="empty-icon">🚢</div><div class="empty-text">Clique em Atualizar</div></div>
           </div>
@@ -2305,9 +2314,8 @@ let _cenarioGraficoAnual = null;
 let _cenarioGraficoDiario = null;
 
 async function gerarCenario() {
-  document.getElementById('cenario-tabela').innerHTML    = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Carregando...</div></div>';
-  document.getElementById('cenario-pedidos').innerHTML   = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Carregando...</div></div>';
-  document.getElementById('cenario-importacao').innerHTML= '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Carregando...</div></div>';
+  const load = id => document.getElementById(id).innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Carregando...</div></div>';
+  ['cenario-tabela','cenario-pedidos-totais','cenario-pedidos','cenario-importacao'].forEach(load);
 
   try {
     const res = await api('getCenarioMomento');
@@ -2315,16 +2323,15 @@ async function gerarCenario() {
 
     _renderCenarioKPIs(res.resumo);
     _renderCenarioTabela(res.tabela);
-    _renderCenarioGraficoAnual(res.anual);
+    _renderCenarioPedidosTotais(res.tabela);
+    _renderCenarioGraficoAnual(res.anual, res.resumo);
     _renderCenarioGraficoDiario(res.diario);
     _renderCenarioPedidos(res.pedidos);
     _renderCenarioImportacao(res.importacao);
     document.getElementById('cenario-data').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
   } catch(e) {
     const err = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
-    document.getElementById('cenario-tabela').innerHTML     = err;
-    document.getElementById('cenario-pedidos').innerHTML    = err;
-    document.getElementById('cenario-importacao').innerHTML = err;
+    ['cenario-tabela','cenario-pedidos-totais','cenario-pedidos','cenario-importacao'].forEach(id => document.getElementById(id).innerHTML = err);
   }
 }
 
@@ -2342,79 +2349,122 @@ function _renderCenarioKPIs(resumo) {
 function _renderCenarioTabela(tabela) {
   const up = s => String(s||'').toUpperCase();
   const n  = v => v !== 0 ? fmtNum(v) : '<span style="color:#bbb">0</span>';
-  const td = 'padding:4px 7px;white-space:nowrap;';
+  const p  = 'padding:4px 7px;white-space:nowrap;font-size:11px;';
 
-  // Cores padrão por etapa (igual à planilha)
   const COR = {
-    'AG. IMPORTAÇÃO':    { bg:'#c00000', fg:'#fff', bold:true },
-    'AG. IMPORTACAO':    { bg:'#c00000', fg:'#fff', bold:true },
-    'ENGENHARIA':        { bg:'#f4cccc', fg:'#000', bold:false },
-    'PENDENCIA COMERCIAL':{ bg:'#f4cccc', fg:'#000', bold:false },
-    'FINANCEIRO':        { bg:'#e06c00', fg:'#fff', bold:true },
-    'SILK':              { bg:'#d9ead3', fg:'#000', bold:false },
-    'ATENDER POR SP':    { bg:'#d9ead3', fg:'#000', bold:false },
-    'PCP':               { bg:'#d9ead3', fg:'#000', bold:false },
-    'ESTOQUE':           { bg:'#d9ead3', fg:'#000', bold:false },
-    'PRODUÇÃO':          { bg:'#d9ead3', fg:'#000', bold:false },
-    'PRODUCAO':          { bg:'#d9ead3', fg:'#000', bold:false },
-    'QUALIDADE':         { bg:'#d9ead3', fg:'#000', bold:false },
-    'CONSOLIDAÇÃO':      { bg:'#38761d', fg:'#fff', bold:true },
-    'CONSOLIDACAO':      { bg:'#38761d', fg:'#fff', bold:true },
-    'EXPEDIÇÃO':         { bg:'#38761d', fg:'#fff', bold:true },
-    'EXPEDICAO':         { bg:'#38761d', fg:'#fff', bold:true },
+    'AG. IMPORTAÇÃO':['#cc0000','#fff'], 'AG. IMPORTACAO':['#cc0000','#fff'],
+    'ENGENHARIA':['#ea9999','#000'], 'PENDENCIA COMERCIAL':['#ea9999','#000'], 'FINANCEIRO':['#ea9999','#000'],
+    'SILK':['#ffe599','#000'], 'ATENDER POR SP':['#ffe599','#000'], 'PCP':['#ffe599','#000'], 'ESTOQUE':['#ffe599','#000'],
+    'PRODUÇÃO':['#b6d7a8','#000'], 'PRODUCAO':['#b6d7a8','#000'], 'QUALIDADE':['#b6d7a8','#000'],
+    'CONSOLIDAÇÃO':['#6aa84f','#fff'], 'CONSOLIDACAO':['#6aa84f','#fff'],
+    'EXPEDIÇÃO':['#6aa84f','#fff'], 'EXPEDICAO':['#6aa84f','#fff'],
   };
 
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px">
-    <thead><tr style="background:#1155cc;color:#fff;font-weight:700">
-      <th style="padding:5px 7px;text-align:left;font-size:10px">ETAPA</th>
-      <th style="padding:5px 7px;text-align:right;font-size:10px">CLEAR</th>
-      <th style="padding:5px 7px;text-align:right;font-size:10px">VTV</th>
-      <th style="padding:5px 7px;text-align:right;font-size:10px">O&M</th>
-      <th style="padding:5px 7px;text-align:right;font-size:10px">FATURADO</th>
-      <th style="padding:5px 7px;text-align:right;font-size:10px">TOTAL</th>
-    </tr></thead><tbody>`;
-
+  // Categoriza linhas por seção
+  let s1 = [], s2 = [], t1 = null, t2 = null;
+  let sec = '';
   for (const r of tabela) {
-    const label  = r.etapa || r.secao;
+    const label = r.etapa || r.secao;
     if (!label) continue;
-    const labelU = up(label);
-    const total  = r.clear + r.vtv + r.om + r.faturado;
-
-    // Ignora linhas de seção (sem dados, só rótulo agrupador)
-    const isSomenteTitulo = total === 0 && r.clear === 0 && r.vtv === 0 && r.om === 0 && r.faturado === 0
-      && (labelU.includes('FATURÁV') || labelU.includes('FATURAV') || labelU.includes('ITENS'));
-    if (isSomenteTitulo) continue;
-
-    // Cor da linha
-    let bg = '#fff', fg = '#000', bold = false;
-    const cor = COR[labelU] || COR[label.toUpperCase()];
-    if (cor) { bg = cor.bg; fg = cor.fg; bold = cor.bold; }
-    else if (labelU === 'TOTAIS')                              { bg='#e2efda'; fg='#000'; bold=true; }
-    else if (labelU.includes('NÃO FATUR') || labelU.includes('NAO FATUR')) { bg='#f4cccc'; fg='#000'; bold=true; }
-    else if (labelU.includes('TOTAL') && (labelU.includes('FATUR') && !labelU.includes('NÃO') && !labelU.includes('NAO'))) { bg='#d9ead3'; fg='#000'; bold=true; }
-    else if (labelU.includes('TOTAL GERAL') || labelU.includes('GERAL DE PEDIDOS')) { bg='#cfe2f3'; fg='#000'; bold=true; }
-
-    const rs = `background:${bg};color:${fg};${bold?'font-weight:700;':''}border-bottom:1px solid rgba(0,0,0,.06);`;
-    const isTotalRow = labelU.includes('TOTAL') && (labelU.includes('PEDIDO') || labelU.includes('GERAL'));
-
-    if (isTotalRow) {
-      html += `<tr style="${rs}"><td colspan="5" style="${td}font-weight:700;font-size:10px">${esc(label)}</td><td style="${td}text-align:right;font-weight:800">${fmtNum(total)}</td></tr>`;
-    } else {
-      html += `<tr style="${rs}">
-        <td style="${td}">${esc(label)}</td>
-        <td style="${td}text-align:right">${n(r.clear)}</td>
-        <td style="${td}text-align:right">${n(r.vtv)}</td>
-        <td style="${td}text-align:right">${n(r.om)}</td>
-        <td style="${td}text-align:right">${n(r.faturado)}</td>
-        <td style="${td}text-align:right;font-weight:700">${fmtNum(total)}</td>
-      </tr>`;
-    }
+    const lu = up(label);
+    if (lu.includes('ITENS')) { sec = (lu.includes('NÃO')||lu.includes('NAO')) ? 'nfat' : 'fat'; continue; }
+    if (lu.includes('TOTAL')) continue; // total rows → bloco 3
+    if (lu === 'TOTAIS') { if (sec==='nfat') t1=r; else t2=r; continue; }
+    if (sec==='nfat') s1.push(r); else if (sec==='fat') s2.push(r);
   }
+
+  const th1 = 'padding:5px 8px;font-size:10px;font-weight:700;text-align:center;border:1px solid rgba(255,255,255,.15);';
+  const side = (txt, rows, bg, fg) =>
+    `<td rowspan="${rows}" style="background:${bg};color:${fg};writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;padding:2px 4px;font-size:8px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;border-right:2px solid rgba(0,0,0,.1)">${txt}</td>`;
+
+  const dataRow = (r, sideCell='') => {
+    const label = r.etapa || r.secao;
+    const [bg, fg] = COR[up(label)] || ['#fff','#000'];
+    const total = r.clear + r.vtv + r.om + r.faturado;
+    return `<tr style="background:${bg};color:${fg};border-bottom:1px solid rgba(0,0,0,.07)">
+      ${sideCell}<td style="${p}">${esc(label)}</td>
+      <td style="${p}text-align:right">${n(r.clear)}</td>
+      <td style="${p}text-align:right">${n(r.vtv)}</td>
+      <td style="${p}text-align:right">${n(r.om)}</td>
+      <td style="${p}text-align:right">${n(r.faturado)}</td>
+      <td style="${p}text-align:right;font-weight:700">${fmtNum(total)}</td>
+    </tr>`;
+  };
+
+  const totaisRow = (r) => {
+    const total = r.clear + r.vtv + r.om + r.faturado;
+    return `<tr style="background:#1155cc;color:#fff;font-weight:700">
+      <td style="${p}"></td><td style="${p}font-style:italic">TOTAIS</td>
+      <td style="${p}text-align:right">${fmtNum(r.clear)}</td>
+      <td style="${p}text-align:right">${fmtNum(r.vtv)}</td>
+      <td style="${p}text-align:right">${fmtNum(r.om)}</td>
+      <td style="${p}text-align:right">${fmtNum(r.faturado)}</td>
+      <td style="${p}text-align:right;font-weight:800">${fmtNum(total)}</td>
+    </tr>`;
+  };
+
+  let html = `<table style="width:100%;border-collapse:collapse">
+    <thead>
+      <tr style="background:#1155cc;color:#fff;font-weight:700">
+        <th style="${th1}width:16px" rowspan="2"></th>
+        <th style="${th1}text-align:left" rowspan="2">Etapas</th>
+        <th style="${th1}" colspan="3">Verticais</th>
+        <th style="${th1}" rowspan="2">Faturado</th>
+        <th style="${th1}" rowspan="2">Totais</th>
+      </tr>
+      <tr style="background:#1a6acc;color:#fff;font-weight:700">
+        <th style="${th1}">CLEAR</th><th style="${th1}">VTV</th><th style="${th1}">O&M</th>
+      </tr>
+    </thead><tbody>`;
+
+  s1.forEach((r,i) => { html += dataRow(r, i===0 ? side('ITENS NÃO FATURÁVEIS', s1.length, '#cc4125','#fff') : ''); });
+  if (t1) html += totaisRow(t1);
+  s2.forEach((r,i) => { html += dataRow(r, i===0 ? side('ITENS FATURÁVEIS', s2.length, '#38761d','#fff') : ''); });
+  if (t2) html += totaisRow(t2);
+
   html += '</tbody></table>';
   document.getElementById('cenario-tabela').innerHTML = html;
 }
 
-function _renderCenarioGraficoAnual(anual) {
+function _renderCenarioPedidosTotais(tabela) {
+  const up = s => String(s||'').toUpperCase();
+  const p  = 'padding:5px 8px;white-space:nowrap;font-size:11px;font-weight:700;';
+  const rows = tabela.filter(r => { const lu=up(r.etapa||r.secao); return lu.includes('TOTAL')&&(lu.includes('PEDIDO')||lu.includes('GERAL')); });
+  if (!rows.length) { document.getElementById('cenario-pedidos-totais').innerHTML=''; return; }
+
+  const COR_P = lu => {
+    if (lu.includes('NÃO')||lu.includes('NAO')) return ['#f4cccc','#000'];
+    if (lu.includes('GERAL')) return ['#38761d','#fff'];
+    return ['#d9ead3','#000'];
+  };
+
+  const th = 'padding:5px 8px;font-size:10px;font-weight:700;text-align:center;border:1px solid rgba(255,255,255,.15);';
+  let html = `<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:#1155cc;color:#fff;font-weight:700">
+      <th style="${th}text-align:left">PEDIDOS — Status</th>
+      <th style="${th}">CLEAR</th><th style="${th}">VTV</th><th style="${th}">O&M</th>
+      <th style="${th}">Faturado</th><th style="${th}">Total</th>
+    </tr></thead><tbody>`;
+
+  for (const r of rows) {
+    const label = r.etapa || r.secao;
+    const lu = up(label);
+    const [bg,fg] = COR_P(lu);
+    const total = r.clear + r.vtv + r.om + r.faturado;
+    html += `<tr style="background:${bg};color:${fg};border-bottom:1px solid rgba(0,0,0,.08)">
+      <td style="${p}">${esc(label)}</td>
+      <td style="${p}text-align:right">${fmtNum(r.clear)}</td>
+      <td style="${p}text-align:right">${fmtNum(r.vtv)}</td>
+      <td style="${p}text-align:right">${fmtNum(r.om)}</td>
+      <td style="${p}text-align:right">${fmtNum(r.faturado)}</td>
+      <td style="${p}text-align:right;font-weight:800">${fmtNum(total)}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('cenario-pedidos-totais').innerHTML = html;
+}
+
+function _renderCenarioGraficoAnual(anual, resumo) {
   if (_cenarioGraficoAnual) { _cenarioGraficoAnual.destroy(); _cenarioGraficoAnual = null; }
   const ctx = document.getElementById('cenario-grafico-anual').getContext('2d');
   _cenarioGraficoAnual = new Chart(ctx, {
@@ -2422,28 +2472,46 @@ function _renderCenarioGraficoAnual(anual) {
     data: {
       labels: anual.map(r => r.mes),
       datasets: [
-        { label: 'CLEAR', data: anual.map(r => r.clear), backgroundColor: '#3b82f6', borderRadius: 2, stack: 'fat' },
-        { label: 'O&M',   data: anual.map(r => r.om),    backgroundColor: '#d97706', borderRadius: 2, stack: 'fat' },
-        { label: 'VTV',   data: anual.map(r => r.vtv),   backgroundColor: '#22c55e', borderRadius: 2, stack: 'fat' },
+        { label: '2026', data: anual.map(r => r.v2026), backgroundColor: '#16a34a', borderRadius: 2 },
+        { label: '2025', data: anual.map(r => r.v2025), backgroundColor: '#dc2626', borderRadius: 2 },
+        { label: '2024', data: anual.map(r => r.v2024), backgroundColor: '#2563eb', borderRadius: 2 },
       ]
     },
     options: {
       responsive: true,
       plugins: {
-        legend: { position: 'top', labels: { font: { size: 11 } } },
+        legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
         datalabels: {
-          display: ctx => ctx.dataset.data[ctx.dataIndex] > 0,
-          anchor: 'center', align: 'center',
-          formatter: v => v > 0 ? 'R$'+(v/1000).toFixed(1)+'k' : '',
-          font: { size: 8, weight: 'bold' }, color: '#fff'
+          display: c => c.dataset.data[c.dataIndex] > 0,
+          anchor: 'end', align: 'end',
+          formatter: v => v > 0 ? (v/1000).toFixed(0)+'k' : '',
+          font: { size: 7, weight: 'bold' }, color: '#374151', rotation: -45
         }
       },
       scales: {
-        x: { stacked: true, ticks: { font: { size: 9 } } },
-        y: { stacked: true, ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', font: { size: 10 } }, grid: { color: '#f3f4f6' } }
+        x: { ticks: { font: { size: 9 } } },
+        y: { ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', font: { size: 9 } }, grid: { color: '#f3f4f6' } }
       }
     }
   });
+
+  // Tabela Resumo à direita do gráfico
+  if (resumo?.length) {
+    const lblMap = { '2024':'2024','2025':'2025','2026':'2026','MÊS ATUAL':'Mês Atual','MES ATUAL':'Mês Atual' };
+    const up = s => String(s||'').toUpperCase();
+    const clr = s => { const u=up(s); if (u.includes('2026')) return '#16a34a'; if (u.includes('2025')) return '#dc2626'; if (u.includes('2024')) return '#2563eb'; return '#1f2937'; };
+    let html = `<div style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;padding:10px;font-size:11px">
+      <div style="font-weight:700;font-size:11px;margin-bottom:8px;text-transform:uppercase;color:#374151;letter-spacing:.5px">Resumo</div>`;
+    for (const r of resumo) {
+      const lbl = lblMap[up(r.label)] || r.label;
+      html += `<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;align-items:center">
+        <span style="font-weight:600;color:${clr(r.label)}">${esc(lbl)}</span>
+        <span style="font-weight:700;white-space:nowrap">${fmtNum(r.valor)}</span>
+      </div>`;
+    }
+    html += `</div>`;
+    document.getElementById('cenario-resumo').innerHTML = html;
+  }
 }
 
 function _renderCenarioGraficoDiario(diario) {
@@ -2463,8 +2531,8 @@ function _renderCenarioGraficoDiario(diario) {
         legend: { display: false },
         datalabels: {
           anchor: 'end', align: 'top',
-          formatter: v => v > 0 ? (v/1000).toFixed(0)+'k' : '',
-          font: { size: 8, weight: 'bold' }, color: '#374151'
+          formatter: v => v > 0 ? fmtNum(v) : '',
+          font: { size: 9, weight: 'bold' }, color: '#1f2937'
         }
       },
       scales: {
