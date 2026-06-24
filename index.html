@@ -2352,43 +2352,34 @@ function _renderCenarioTabela(tabela) {
   const n  = v => v !== 0 ? fmtNum(v) : '<span style="color:#ccc;font-size:10px">0</span>';
   const p  = 'padding:4px 7px;white-space:nowrap;font-size:11px;';
 
-  const COR = {
-    'AG. IMPORTAÇÃO':['#cc0000','#fff'], 'AG. IMPORTACAO':['#cc0000','#fff'],
-    'ENGENHARIA':['#ea9999','#000'], 'PENDENCIA COMERCIAL':['#ea9999','#000'], 'FINANCEIRO':['#e06c00','#fff'],
-    'SILK':['#ffe599','#000'], 'ATENDER POR SP':['#ffe599','#000'], 'PCP':['#ffe599','#000'], 'ESTOQUE':['#ffe599','#000'],
-    'PRODUÇÃO':['#b6d7a8','#000'], 'PRODUCAO':['#b6d7a8','#000'], 'QUALIDADE':['#b6d7a8','#000'],
-    'CONSOLIDAÇÃO':['#6aa84f','#fff'], 'CONSOLIDACAO':['#6aa84f','#fff'],
-    'EXPEDIÇÃO':['#6aa84f','#fff'], 'EXPEDICAO':['#6aa84f','#fff'],
+  // Cor do texto calculada automaticamente pelo contraste com o fundo
+  const fg = hex => {
+    const h = (hex||'').replace('#','');
+    if (h.length < 6) return '#000';
+    const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+    return (0.299*r + 0.587*g + 0.114*b) > 140 ? '#000' : '#fff';
   };
 
-  // Seção detectada pelo nome da etapa — sem dependência da coluna A
-  const NFAT = new Set(['AG. IMPORTAÇÃO','AG. IMPORTACAO','ENGENHARIA','PENDENCIA COMERCIAL','FINANCEIRO']);
-  const FAT  = new Set(['SILK','ATENDER POR SP','PCP','ESTOQUE','PRODUÇÃO','PRODUCAO','QUALIDADE','CONSOLIDAÇÃO','CONSOLIDACAO','EXPEDIÇÃO','EXPEDICAO']);
-
-  let s1 = [], s2 = [], t1 = null, t2 = null;
+  // Separa seções pela posição do TOTAIS — sem mapa hardcoded
+  let s1 = [], s2 = [], t1 = null, t2 = null, passedFirst = false;
   for (const r of tabela) {
-    const label = r.etapa;
-    if (!label) continue;
-    const lu = up(label);
-    if (lu === 'TOTAIS') { if (!t1) t1=r; else t2=r; continue; }
-    if (lu.includes('TOTAL')) continue;
-    if (NFAT.has(lu) || NFAT.has(label)) s1.push(r);
-    else if (FAT.has(lu) || FAT.has(label)) s2.push(r);
+    if (!r.etapa) continue;
+    if (up(r.etapa) === 'TOTAIS') { if (!passedFirst) { t1=r; passedFirst=true; } else t2=r; continue; }
+    if (!passedFirst) s1.push(r); else s2.push(r);
   }
 
   const th = 'padding:5px 8px;font-size:10px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.15);';
 
-  const secRow = (txt, bg, fg) =>
-    `<tr style="background:${bg};color:${fg}">
+  const secRow = (txt, bg) =>
+    `<tr style="background:${bg};color:${fg(bg)}">
       <td colspan="6" style="padding:3px 8px;font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase">■ ${txt}</td>
     </tr>`;
 
-  const dataRow = (r) => {
-    const label = r.etapa;
-    const [bg, fg] = COR[up(label)] || ['#fff','#000'];
+  const dataRow = r => {
+    const bg = r.cor || '#fff', color = fg(bg);
     const total = r.total || (r.clear + r.vtv + r.om);
-    return `<tr style="background:${bg};color:${fg};border-bottom:1px solid rgba(0,0,0,.07)">
-      <td style="${p}">${esc(label)}</td>
+    return `<tr style="background:${bg};color:${color};border-bottom:1px solid rgba(0,0,0,.07)">
+      <td style="${p}">${esc(r.etapa)}</td>
       <td style="${p}text-align:right">${n(r.clear)}</td>
       <td style="${p}text-align:right">${n(r.vtv)}</td>
       <td style="${p}text-align:right">${n(r.om)}</td>
@@ -2397,9 +2388,10 @@ function _renderCenarioTabela(tabela) {
     </tr>`;
   };
 
-  const totaisRow = (r) => {
+  const totaisRow = r => {
+    const bg = r.cor || '#1155cc', color = fg(bg);
     const total = r.total || (r.clear + r.vtv + r.om);
-    return `<tr style="background:#1155cc;color:#fff;font-weight:700">
+    return `<tr style="background:${bg};color:${color};font-weight:700">
       <td style="${p}font-style:italic">TOTAIS</td>
       <td style="${p}text-align:right">${fmtNum(r.clear)}</td>
       <td style="${p}text-align:right">${fmtNum(r.vtv)}</td>
@@ -2409,26 +2401,24 @@ function _renderCenarioTabela(tabela) {
     </tr>`;
   };
 
-  // Título inclui a data atual
   const hoje = new Date().toLocaleDateString('pt-BR');
   let html = `<div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Etapas de Pedidos — ${hoje}</div>
   <table style="width:100%;border-collapse:collapse">
-    <thead>
-      <tr style="background:#1155cc;color:#fff;font-weight:700">
-        <th style="${th}text-align:left">Etapa</th>
-        <th style="${th}">CLEAR</th>
-        <th style="${th}">VTV</th>
-        <th style="${th}">O&M</th>
-        <th style="${th}">Faturado</th>
-        <th style="${th}">Total</th>
-      </tr>
-    </thead><tbody>`;
+    <thead><tr style="background:#1155cc;color:#fff;font-weight:700">
+      <th style="${th}text-align:left">Etapa</th>
+      <th style="${th}">CLEAR</th><th style="${th}">VTV</th><th style="${th}">O&M</th>
+      <th style="${th}">Faturado</th><th style="${th}border-right:none">Total</th>
+    </tr></thead><tbody>`;
 
-  html += secRow('Itens Não Faturáveis', '#cc4125', '#fff');
+  // Pega a cor da primeira linha NÃO FATURÁVEIS para o secRow
+  const corNFat = t1?.cor || '#cc4125';
+  const corFat  = t2?.cor || '#38761d';
+
+  html += secRow('Itens Não Faturáveis', corNFat);
   s1.forEach(r => { html += dataRow(r); });
   if (t1) html += totaisRow(t1);
 
-  html += secRow('Itens Faturáveis', '#38761d', '#fff');
+  html += secRow('Itens Faturáveis', corFat);
   s2.forEach(r => { html += dataRow(r); });
   if (t2) html += totaisRow(t2);
 
