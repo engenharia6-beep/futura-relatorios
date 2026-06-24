@@ -956,7 +956,7 @@
           </div>
         </div>
         <div style="flex:1;min-width:320px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:10px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Acompanhamento de Vendas Anuais</div>
+          <div style="padding:10px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Faturamento Mensal — CLEAR / VTV / O&M</div>
           <div style="padding:14px">
             <canvas id="cenario-grafico-anual" height="160"></canvas>
           </div>
@@ -2340,13 +2340,10 @@ function _renderCenarioKPIs(resumo) {
 }
 
 function _renderCenarioTabela(tabela) {
-  const NFAT_ETAPAS = ['AG. IMPORTAÇÃO','ENGENHARIA','PENDENCIA COMERCIAL','FINANCEIRO'];
-  const TOTAIS_ETAPAS = ['TOTAIS'];
-  const NFAT_TOTAL = 'TOTAL DE PEDIDOS NÃO FATURÁVEIS NO MOMENTO';
-  const FAT_TOTAL  = 'TOTAL DE PEDIDOS FATURÁVEIS NO MOMENTO';
-  const GERAL      = 'TOTAL GERAL DE PEDIDOS';
+  const up = s => String(s||'').toUpperCase();
+  const n  = v => v !== 0 ? fmtNum(v) : '<span style="color:#d1d5db">0</span>';
+  const td = 'padding:5px 8px;';
 
-  let secaoAtual = '';
   let html = `<table style="width:100%;border-collapse:collapse;font-size:12px">
     <thead><tr style="background:#1a5c5a;color:#fff">
       <th style="padding:6px 8px;text-align:left;font-size:10px;text-transform:uppercase">Etapa</th>
@@ -2358,55 +2355,44 @@ function _renderCenarioTabela(tabela) {
     </tr></thead><tbody>`;
 
   for (const r of tabela) {
-    if (!r.etapa) continue;
-    const total = r.clear + r.vtv + r.om + r.faturado;
-    const n = v => v !== 0 ? fmtNum(v) : '<span style="color:#d1d5db">0</span>';
+    // Rótulo: prioriza coluna B (etapa), usa coluna A (secao) como fallback para cabeçalhos de seção
+    const label  = r.etapa || r.secao;
+    if (!label) continue;
 
-    if (r.etapa.toUpperCase().includes('NÃO FATURÁVEIS') || r.etapa.toUpperCase().includes('NAO FATURAV')) {
-      secaoAtual = 'nfat';
-      html += `<tr style="background:#1a2e2e;color:#fff"><td colspan="6" style="padding:4px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">⬛ ${esc(r.etapa)}</td></tr>`;
+    const total  = r.clear + r.vtv + r.om + r.faturado;
+    const labelU = up(label);
+
+    // Cabeçalhos de seção (linhas sem valores numéricos que agrupam as etapas)
+    if ((labelU.includes('NÃO FATUR') || labelU.includes('NAO FATUR')) && total === 0 && r.clear === 0) {
+      html += `<tr style="background:#1a2e2e;color:#fff"><td colspan="6" style="${td}font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">⬛ ${esc(label)}</td></tr>`;
       continue;
     }
-    if (r.etapa.toUpperCase().includes('FATURÁVEIS') || r.etapa.toUpperCase().includes('FATURAV')) {
-      secaoAtual = 'fat';
-      html += `<tr style="background:#1a2e2e;color:#fff"><td colspan="6" style="padding:4px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">⬜ ${esc(r.etapa)}</td></tr>`;
+    if (labelU.includes('FATUR') && !labelU.includes('NÃO') && !labelU.includes('NAO') && total === 0 && r.clear === 0 && !labelU.includes('TOTAL')) {
+      html += `<tr style="background:#1a2e2e;color:#fff"><td colspan="6" style="${td}font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">⬜ ${esc(label)}</td></tr>`;
       continue;
     }
 
+    // Cor por tipo de linha
     let rowStyle = 'border-bottom:1px solid #f3f4f6;';
-    let tdStyle  = 'padding:5px 8px;';
+    if      (labelU === 'AG. IMPORTAÇÃO' || labelU === 'AG. IMPORTACAO') rowStyle = 'background:#dc2626;color:#fff;font-weight:700;';
+    else if (labelU === 'FINANCEIRO')                                     rowStyle = 'background:#ea580c;color:#fff;font-weight:700;';
+    else if (labelU === 'TOTAIS')                                         rowStyle = 'background:#e5e7eb;font-weight:700;color:#374151;';
+    else if (labelU.includes('NÃO FATUR') || labelU.includes('NAO FATUR')) rowStyle = 'background:#fef3c7;font-weight:700;color:#92400e;';
+    else if (labelU.includes('TOTAL') && labelU.includes('FATUR') && !labelU.includes('NÃO') && !labelU.includes('NAO')) rowStyle = 'background:#d1fae5;font-weight:700;color:#065f46;';
+    else if (labelU.includes('TOTAL GERAL'))                              rowStyle = 'background:#1a5c5a;color:#fff;font-weight:700;';
 
-    if (r.etapa.toUpperCase() === 'AG. IMPORTAÇÃO') {
-      rowStyle = 'background:#dc2626;color:#fff;font-weight:700;';
-    } else if (r.etapa.toUpperCase() === 'FINANCEIRO') {
-      rowStyle = 'background:#ea580c;color:#fff;font-weight:700;';
-    } else if (r.etapa.toUpperCase() === 'TOTAIS') {
-      rowStyle = 'background:#e5e7eb;font-weight:700;color:#374151;';
-    } else if (r.etapa.toUpperCase().includes('NÃO FATURÁVEIS') || r.etapa === NFAT_TOTAL) {
-      rowStyle = 'background:#fef3c7;font-weight:700;color:#92400e;';
-    } else if (r.etapa === FAT_TOTAL) {
-      rowStyle = 'background:#d1fae5;font-weight:700;color:#065f46;';
-    } else if (r.etapa.toUpperCase().includes('TOTAL GERAL')) {
-      rowStyle = 'background:#1a5c5a;color:#fff;font-weight:700;';
-    }
+    const isTotalRow = labelU.includes('TOTAL') && (labelU.includes('PEDIDOS') || labelU.includes('GERAL'));
 
-    const isNeg = r.etapa === NFAT_TOTAL;
-    const isFat = r.etapa === FAT_TOTAL;
-    const isGeral = r.etapa.toUpperCase().includes('TOTAL GERAL');
-
-    if (isNeg || isFat || isGeral) {
-      html += `<tr style="${rowStyle}">
-        <td colspan="5" style="${tdStyle}font-weight:700">${esc(r.etapa)}</td>
-        <td style="${tdStyle}text-align:right;font-weight:800">${fmtNum(total)}</td>
-      </tr>`;
+    if (isTotalRow) {
+      html += `<tr style="${rowStyle}"><td colspan="5" style="${td}font-weight:700">${esc(label)}</td><td style="${td}text-align:right;font-weight:800">${fmtNum(total)}</td></tr>`;
     } else {
       html += `<tr style="${rowStyle}">
-        <td style="${tdStyle}font-weight:600">${esc(r.etapa)}</td>
-        <td style="${tdStyle}text-align:right">${n(r.clear)}</td>
-        <td style="${tdStyle}text-align:right">${n(r.vtv)}</td>
-        <td style="${tdStyle}text-align:right">${n(r.om)}</td>
-        <td style="${tdStyle}text-align:right">${n(r.faturado)}</td>
-        <td style="${tdStyle}text-align:right;font-weight:700">${fmtNum(total)}</td>
+        <td style="${td}font-weight:600">${esc(label)}</td>
+        <td style="${td}text-align:right">${n(r.clear)}</td>
+        <td style="${td}text-align:right">${n(r.vtv)}</td>
+        <td style="${td}text-align:right">${n(r.om)}</td>
+        <td style="${td}text-align:right">${n(r.faturado)}</td>
+        <td style="${td}text-align:right;font-weight:700">${fmtNum(total)}</td>
       </tr>`;
     }
   }
@@ -2422,9 +2408,9 @@ function _renderCenarioGraficoAnual(anual) {
     data: {
       labels: anual.map(r => r.mes),
       datasets: [
-        { label: '2026', data: anual.map(r => r.v2026), backgroundColor: '#4ade80', borderRadius: 3 },
-        { label: '2025', data: anual.map(r => r.v2025), backgroundColor: '#f87171', borderRadius: 3 },
-        { label: '2024', data: anual.map(r => r.v2024), backgroundColor: '#60a5fa', borderRadius: 3 },
+        { label: 'CLEAR', data: anual.map(r => r.clear), backgroundColor: '#3b82f6', borderRadius: 2, stack: 'fat' },
+        { label: 'O&M',   data: anual.map(r => r.om),    backgroundColor: '#d97706', borderRadius: 2, stack: 'fat' },
+        { label: 'VTV',   data: anual.map(r => r.vtv),   backgroundColor: '#22c55e', borderRadius: 2, stack: 'fat' },
       ]
     },
     options: {
@@ -2433,14 +2419,14 @@ function _renderCenarioGraficoAnual(anual) {
         legend: { position: 'top', labels: { font: { size: 11 } } },
         datalabels: {
           display: ctx => ctx.dataset.data[ctx.dataIndex] > 0,
-          anchor: 'end', align: 'top',
-          formatter: v => v > 0 ? (v/1000).toFixed(0)+'k' : '',
-          font: { size: 8, weight: 'bold' }, color: '#374151'
+          anchor: 'center', align: 'center',
+          formatter: v => v > 0 ? 'R$'+(v/1000).toFixed(1)+'k' : '',
+          font: { size: 8, weight: 'bold' }, color: '#fff'
         }
       },
       scales: {
-        y: { ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', font: { size: 10 } }, grid: { color: '#f3f4f6' } },
-        x: { ticks: { font: { size: 9 } } }
+        x: { stacked: true, ticks: { font: { size: 9 } } },
+        y: { stacked: true, ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', font: { size: 10 } }, grid: { color: '#f3f4f6' } }
       }
     }
   });
