@@ -2416,17 +2416,11 @@ function _renderCenarioTabela(tabela) {
     <thead>
       <tr style="background:#1155cc;color:#fff;font-weight:700">
         <th style="${th}text-align:left">Etapa</th>
-        <th style="${th}" colspan="3">Verticais</th>
+        <th style="${th}">CLEAR</th>
+        <th style="${th}">VTV</th>
+        <th style="${th}">O&M</th>
         <th style="${th}">Faturado</th>
         <th style="${th}">Total</th>
-      </tr>
-      <tr style="background:#1a6acc;color:#fff;font-weight:600">
-        <th style="${th}text-align:left;font-size:9px;font-style:italic">— vertical —</th>
-        <th style="${th}font-size:10px">CLEAR</th>
-        <th style="${th}font-size:10px">VTV</th>
-        <th style="${th}font-size:10px">O&M</th>
-        <th style="${th}font-size:10px"></th>
-        <th style="${th}font-size:10px"></th>
       </tr>
     </thead><tbody>`;
 
@@ -2482,62 +2476,85 @@ function _renderCenarioPedidosTotais(rows) {
 
 function _renderCenarioGraficoAnual(anual) {
   if (_cenarioGraficoAnual) { _cenarioGraficoAnual.destroy(); _cenarioGraficoAnual = null; }
+  const labels   = anual.map(r => r.mes);
+  const a2024    = anual.map(r => r.v2024 || 0);
+  const a2025    = anual.map(r => r.v2025 || 0);
+  const a2026    = anual.map(r => r.v2026 || 0);
+  const totais   = anual.map((_,i) => a2024[i] + a2025[i] + a2026[i]);
+  const fmt      = v => v >= 1000 ? 'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : 'R$ '+Math.round(v);
+
   const ctx = document.getElementById('cenario-grafico-anual').getContext('2d');
   _cenarioGraficoAnual = new Chart(ctx, {
     type: 'bar',
-    data: {
-      labels: anual.map(r => r.mes),
-      datasets: [
-        { label: '2026', data: anual.map(r => r.v2026), backgroundColor: '#16a34a', borderRadius: 2 },
-        { label: '2025', data: anual.map(r => r.v2025), backgroundColor: '#dc2626', borderRadius: 2 },
-        { label: '2024', data: anual.map(r => r.v2024), backgroundColor: '#2563eb', borderRadius: 2 },
-      ]
-    },
+    data: { labels, datasets: [
+      { label:'2024', data: a2024, backgroundColor:'#9e9e9e' },
+      { label:'2025', data: a2025, backgroundColor:'#1a73e8' },
+      { label:'2026', data: a2026, backgroundColor:'#16a34a' },
+    ]},
     options: {
       responsive: true,
       plugins: {
-        legend: { position: 'top', labels: { font: { size: 13 }, boxWidth: 14, padding: 14 } },
+        legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 14, padding: 12 } },
+        tooltip: { callbacks: {
+          label: c => c.dataset.label + ': ' + fmtNum(c.parsed.y),
+          afterBody: items => 'Total: ' + fmtNum(totais[items[0].dataIndex]),
+        }},
         datalabels: {
-          display: c => c.dataset.data[c.dataIndex] > 0,
-          anchor: 'end', align: 'end',
-          formatter: v => v > 0 ? (v/1000).toFixed(0)+'k' : '',
-          font: { size: 8, weight: 'bold' }, color: '#374151', rotation: -45
-        }
+          display: true,
+          color: '#fff', font: { size: 10, weight: 500 },
+          formatter: v => v > 0 ? fmt(v) : '',
+        },
       },
       scales: {
-        x: { ticks: { font: { size: 10 } } },
-        y: { ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', font: { size: 10 } }, grid: { color: '#f3f4f6' } }
-      }
-    }
+        x: { stacked: true, ticks: { font: { size: 10 } } },
+        y: { stacked: true, ticks: { callback: v => 'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}), font: { size: 10 } }, grid: { color: '#f3f4f6' } },
+      },
+    },
+    plugins: [{
+      id: 'totalNoTopo',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        ctx.font = '500 10px Inter, sans-serif';
+        ctx.fillStyle = '#5f5e5a';
+        ctx.textAlign = 'center';
+        const meta = chart.getDatasetMeta(2);
+        meta.data.forEach((bar, i) => { if (totais[i] > 0) ctx.fillText(fmt(totais[i]), bar.x, bar.y - 6); });
+        ctx.restore();
+      },
+    }],
   });
 }
 
 function _renderCenarioGraficoDiario(diario) {
   if (_cenarioGraficoDiario) { _cenarioGraficoDiario.destroy(); _cenarioGraficoDiario = null; }
-  const maxVal = Math.max(...diario.map(d => d.valor));
-  const cores  = diario.map(d => d.valor === maxVal ? '#0d3d3b' : '#1a5c5a');
+  const fmt        = v => v >= 1000 ? 'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : 'R$ '+Math.round(v);
+  const maxVal     = Math.max(...diario.map(d => d.valor));
+  const idxMelhor  = diario.findIndex(d => d.valor === maxVal);
+  const cores      = diario.map((_,i) => i === idxMelhor ? '#0d3d3b' : '#1a5c5a');
+  const labels     = diario.map(d => 'Dia ' + d.dia);
+
   const ctx = document.getElementById('cenario-grafico-diario').getContext('2d');
   _cenarioGraficoDiario = new Chart(ctx, {
     type: 'bar',
-    data: {
-      labels: diario.map(d => d.dia),
-      datasets: [{ data: diario.map(d => d.valor), backgroundColor: cores, borderRadius: 3 }]
-    },
+    data: { labels, datasets: [{ label:'Faturamento', data: diario.map(d => d.valor), backgroundColor: cores, borderRadius: 3 }] },
     options: {
       responsive: true,
       plugins: {
         legend: { display: false },
+        tooltip: { callbacks: { label: c => 'Faturamento: ' + fmtNum(c.parsed.y) } },
         datalabels: {
-          anchor: 'end', align: 'top',
-          formatter: v => v > 0 ? fmtNum(v) : '',
-          font: { size: 9, weight: 'bold' }, color: '#1f2937'
-        }
+          display: true, align: 'top', anchor: 'end', offset: 4,
+          color:     c => c.dataIndex === idxMelhor ? '#0d3d3b' : '#5f5e5a',
+          font:      c => ({ size: c.dataIndex === idxMelhor ? 11 : 10, weight: c.dataIndex === idxMelhor ? 700 : 400 }),
+          formatter: (v, c) => v > 0 ? (c.dataIndex === idxMelhor ? '🏆 ' : '') + fmt(v) : '',
+        },
       },
       scales: {
-        y: { ticks: { callback: v => (v/1000).toFixed(0)+'k', font: { size: 10 } }, grid: { color: '#f3f4f6' } },
-        x: { ticks: { font: { size: 10 } } }
-      }
-    }
+        y: { ticks: { callback: v => 'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}), font: { size: 10 } }, grid: { color: '#f3f4f6' } },
+        x: { ticks: { font: { size: 10 } } },
+      },
+    },
   });
 }
 
