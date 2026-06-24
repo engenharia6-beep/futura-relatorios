@@ -2381,23 +2381,36 @@ function _renderCenarioTabela(tabela) {
     </tr></thead>
     <tbody>`;
 
+  const branco = `background:#fff;color:#111;`;
+
   for (const r of tabela) {
     if (!r.etapa) continue;
     const bg    = r.cor || '#fff';
     const color = fgOf(bg);
     const isTot = up(r.etapa) === 'TOTAIS';
     const total = r.total || (r.clear + r.vtv + r.om);
-    const fw    = isTot ? 'font-weight:700;' : '';
-    const fi    = isTot ? 'font-style:italic;' : '';
 
-    html += `<tr style="background:${bg};color:${color};${fw}border-bottom:1px solid rgba(0,0,0,.07)">
-      <td style="${p}${fw}${fi}">${esc(r.etapa)}</td>
-      <td style="${p}text-align:right">${isTot ? fmtNum(r.clear) : n(r.clear, bg)}</td>
-      <td style="${p}text-align:right">${isTot ? fmtNum(r.vtv)   : n(r.vtv,   bg)}</td>
-      <td style="${p}text-align:right">${isTot ? fmtNum(r.om)    : n(r.om,    bg)}</td>
-      <td style="${p}text-align:right">${isTot ? fmtNum(r.faturado) : n(r.faturado, bg)}</td>
-      <td style="${p}text-align:right;font-weight:700">${fmtNum(total)}</td>
-    </tr>`;
+    if (isTot) {
+      // TOTAIS: fundo colorido em todas as colunas, branco negrito
+      html += `<tr style="background:${bg};color:${color};font-weight:700;border-bottom:1px solid rgba(0,0,0,.1)">
+        <td style="${p}font-style:italic">${esc(r.etapa)}</td>
+        <td style="${p}text-align:right">${fmtNum(r.clear)}</td>
+        <td style="${p}text-align:right">${fmtNum(r.vtv)}</td>
+        <td style="${p}text-align:right">${fmtNum(r.om)}</td>
+        <td style="${p}text-align:right">${fmtNum(r.faturado)}</td>
+        <td style="${p}text-align:right;font-weight:800">${fmtNum(total)}</td>
+      </tr>`;
+    } else {
+      // Dados: cor só na coluna Etapa, restante fundo branco letra preta
+      html += `<tr style="border-bottom:1px solid #e5e7eb">
+        <td style="${p}background:${bg};color:${color};font-weight:600">${esc(r.etapa)}</td>
+        <td style="${p}${branco}text-align:right">${n(r.clear, '#fff')}</td>
+        <td style="${p}${branco}text-align:right">${n(r.vtv,   '#fff')}</td>
+        <td style="${p}${branco}text-align:right">${n(r.om,    '#fff')}</td>
+        <td style="${p}${branco}text-align:right">${n(r.faturado,'#fff')}</td>
+        <td style="${p}${branco}text-align:right;font-weight:700">${fmtNum(total)}</td>
+      </tr>`;
+    }
   }
 
   html += '</tbody></table>';
