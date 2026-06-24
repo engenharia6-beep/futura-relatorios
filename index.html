@@ -947,21 +947,21 @@
         </div>
       </div>
 
-      <!-- BLOCO 1: Etapas + BLOCO 2: Gráfico Anual -->
-      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <!-- BLOCO 1 (Etapas) + BLOCO 2 (Gráfico) — linha única, largura total -->
+      <div style="display:flex;gap:12px;align-items:flex-start">
         <!-- Bloco 1: Etapas -->
-        <div style="flex:1;min-width:380px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
+        <div style="flex:4 1 0;min-width:0;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
           <div id="cenario-tabela" style="overflow-x:auto">
             <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Clique em Atualizar</div></div>
           </div>
         </div>
-        <!-- Bloco 2: Gráfico Anual + Resumo -->
-        <div style="flex:0 0 480px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Gráficos de Acompanhamento de Vendas Anuais</div>
-          <div style="display:flex;gap:10px;padding:10px;align-items:center">
-            <div style="flex:1"><canvas id="cenario-grafico-anual" height="220"></canvas></div>
-            <div id="cenario-resumo" style="min-width:130px;flex-shrink:0"></div>
+        <!-- Bloco 2: Gráfico Anual -->
+        <div style="flex:6 1 0;min-width:0;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
+          <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Acompanhamento de Vendas Anuais</div>
+          <div style="padding:10px 14px">
+            <canvas id="cenario-grafico-anual" height="180"></canvas>
           </div>
+          <div id="cenario-resumo" style="padding:0 14px 10px"></div>
         </div>
       </div>
 
@@ -2360,29 +2360,32 @@ function _renderCenarioTabela(tabela) {
     'EXPEDIÇÃO':['#6aa84f','#fff'], 'EXPEDICAO':['#6aa84f','#fff'],
   };
 
-  // Categoriza linhas por seção
+  // Categoriza linhas — TOTAIS (exato) antes do includes('TOTAL')
   let s1 = [], s2 = [], t1 = null, t2 = null;
   let sec = '';
   for (const r of tabela) {
     const label = r.etapa || r.secao;
     if (!label) continue;
     const lu = up(label);
-    if (lu.includes('ITENS')) { sec = (lu.includes('NÃO')||lu.includes('NAO')) ? 'nfat' : 'fat'; continue; }
-    if (lu.includes('TOTAL')) continue; // total rows → bloco 3
-    if (lu === 'TOTAIS') { if (sec==='nfat') t1=r; else t2=r; continue; }
+    if (lu.includes('ITENS'))  { sec = (lu.includes('NÃO')||lu.includes('NAO')) ? 'nfat' : 'fat'; continue; }
+    if (lu === 'TOTAIS')       { if (sec==='nfat') t1=r; else t2=r; continue; }
+    if (lu.includes('TOTAL'))  { continue; } // total pedidos → bloco 3
     if (sec==='nfat') s1.push(r); else if (sec==='fat') s2.push(r);
   }
 
-  const th1 = 'padding:5px 8px;font-size:10px;font-weight:700;text-align:center;border:1px solid rgba(255,255,255,.15);';
-  const side = (txt, rows, bg, fg) =>
-    `<td rowspan="${rows}" style="background:${bg};color:${fg};writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;padding:2px 4px;font-size:8px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;border-right:2px solid rgba(0,0,0,.1)">${txt}</td>`;
+  const th = 'padding:5px 8px;font-size:10px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.15);';
 
-  const dataRow = (r, sideCell='') => {
+  const secRow = (txt, bg, fg) =>
+    `<tr style="background:${bg};color:${fg}">
+      <td colspan="6" style="padding:3px 8px;font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase">■ ${txt}</td>
+    </tr>`;
+
+  const dataRow = (r) => {
     const label = r.etapa || r.secao;
     const [bg, fg] = COR[up(label)] || ['#fff','#000'];
     const total = r.clear + r.vtv + r.om + r.faturado;
     return `<tr style="background:${bg};color:${fg};border-bottom:1px solid rgba(0,0,0,.07)">
-      ${sideCell}<td style="${p}">${esc(label)}</td>
+      <td style="${p}">${esc(label)}</td>
       <td style="${p}text-align:right">${n(r.clear)}</td>
       <td style="${p}text-align:right">${n(r.vtv)}</td>
       <td style="${p}text-align:right">${n(r.om)}</td>
@@ -2394,7 +2397,7 @@ function _renderCenarioTabela(tabela) {
   const totaisRow = (r) => {
     const total = r.clear + r.vtv + r.om + r.faturado;
     return `<tr style="background:#1155cc;color:#fff;font-weight:700">
-      <td style="${p}"></td><td style="${p}font-style:italic">TOTAIS</td>
+      <td style="${p}font-style:italic">TOTAIS</td>
       <td style="${p}text-align:right">${fmtNum(r.clear)}</td>
       <td style="${p}text-align:right">${fmtNum(r.vtv)}</td>
       <td style="${p}text-align:right">${fmtNum(r.om)}</td>
@@ -2403,23 +2406,33 @@ function _renderCenarioTabela(tabela) {
     </tr>`;
   };
 
-  let html = `<table style="width:100%;border-collapse:collapse">
+  // Título inclui a data atual
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  let html = `<div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Etapas de Pedidos — ${hoje}</div>
+  <table style="width:100%;border-collapse:collapse">
     <thead>
       <tr style="background:#1155cc;color:#fff;font-weight:700">
-        <th style="${th1}width:16px" rowspan="2"></th>
-        <th style="${th1}text-align:left" rowspan="2">Etapas</th>
-        <th style="${th1}" colspan="3">Verticais</th>
-        <th style="${th1}" rowspan="2">Faturado</th>
-        <th style="${th1}" rowspan="2">Totais</th>
+        <th style="${th}text-align:left">Etapa</th>
+        <th style="${th}" colspan="3">Verticais</th>
+        <th style="${th}">Faturado</th>
+        <th style="${th}">Total</th>
       </tr>
-      <tr style="background:#1a6acc;color:#fff;font-weight:700">
-        <th style="${th1}">CLEAR</th><th style="${th1}">VTV</th><th style="${th1}">O&M</th>
+      <tr style="background:#1a6acc;color:#fff;font-weight:600">
+        <th style="${th}text-align:left;font-size:9px;font-style:italic">— vertical —</th>
+        <th style="${th}font-size:10px">CLEAR</th>
+        <th style="${th}font-size:10px">VTV</th>
+        <th style="${th}font-size:10px">O&M</th>
+        <th style="${th}font-size:10px"></th>
+        <th style="${th}font-size:10px"></th>
       </tr>
     </thead><tbody>`;
 
-  s1.forEach((r,i) => { html += dataRow(r, i===0 ? side('ITENS NÃO FATURÁVEIS', s1.length, '#cc4125','#fff') : ''); });
+  html += secRow('Itens Não Faturáveis', '#cc4125', '#fff');
+  s1.forEach(r => { html += dataRow(r); });
   if (t1) html += totaisRow(t1);
-  s2.forEach((r,i) => { html += dataRow(r, i===0 ? side('ITENS FATURÁVEIS', s2.length, '#38761d','#fff') : ''); });
+
+  html += secRow('Itens Faturáveis', '#38761d', '#fff');
+  s2.forEach(r => { html += dataRow(r); });
   if (t2) html += totaisRow(t2);
 
   html += '</tbody></table>';
@@ -2495,18 +2508,18 @@ function _renderCenarioGraficoAnual(anual, resumo) {
     }
   });
 
-  // Tabela Resumo à direita do gráfico
+  // Resumo abaixo do gráfico em linha horizontal
   if (resumo?.length) {
-    const lblMap = { '2024':'2024','2025':'2025','2026':'2026','MÊS ATUAL':'Mês Atual','MES ATUAL':'Mês Atual' };
     const up = s => String(s||'').toUpperCase();
-    const clr = s => { const u=up(s); if (u.includes('2026')) return '#16a34a'; if (u.includes('2025')) return '#dc2626'; if (u.includes('2024')) return '#2563eb'; return '#1f2937'; };
-    let html = `<div style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;padding:10px;font-size:11px">
-      <div style="font-weight:700;font-size:11px;margin-bottom:8px;text-transform:uppercase;color:#374151;letter-spacing:.5px">Resumo</div>`;
+    const lblMap = { '2024':'2024','2025':'2025','2026':'2026','MÊS ATUAL':'Mês Atual','MES ATUAL':'Mês Atual' };
+    const clr = s => { const u=up(s); if (u.includes('2026')) return '#16a34a'; if (u.includes('2025')) return '#dc2626'; if (u.includes('2024')) return '#2563eb'; return '#374151'; };
+    const bdr = s => { const u=up(s); if (u.includes('2026')) return '#16a34a'; if (u.includes('2025')) return '#dc2626'; if (u.includes('2024')) return '#2563eb'; return '#6b7280'; };
+    let html = `<div style="display:flex;gap:8px;flex-wrap:wrap">`;
     for (const r of resumo) {
       const lbl = lblMap[up(r.label)] || r.label;
-      html += `<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;align-items:center">
-        <span style="font-weight:600;color:${clr(r.label)}">${esc(lbl)}</span>
-        <span style="font-weight:700;white-space:nowrap">${fmtNum(r.valor)}</span>
+      html += `<div style="flex:1;min-width:80px;border-left:3px solid ${bdr(r.label)};padding:4px 8px;background:#f9fafb;border-radius:4px">
+        <div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase">${esc(lbl)}</div>
+        <div style="font-size:12px;font-weight:800;color:${clr(r.label)}">${fmtNum(r.valor)}</div>
       </div>`;
     }
     html += `</div>`;
