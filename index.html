@@ -948,17 +948,17 @@
       </div>
 
       <!-- Etapas + Gráfico Anual -->
-      <div style="display:flex;gap:14px;flex-wrap:wrap">
-        <div style="flex:0 0 480px;min-width:320px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:10px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Etapas de Pedidos</div>
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:400px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
+          <div style="padding:8px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Etapas de Pedidos</div>
           <div id="cenario-tabela" style="overflow-x:auto">
             <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Clique em Atualizar</div></div>
           </div>
         </div>
-        <div style="flex:1;min-width:320px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:10px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Faturamento Mensal — CLEAR / VTV / O&M</div>
-          <div style="padding:14px">
-            <canvas id="cenario-grafico-anual" height="160"></canvas>
+        <div style="flex:0 0 340px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
+          <div style="padding:8px 14px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Faturamento Mensal — CLEAR / VTV / O&M</div>
+          <div style="padding:10px">
+            <canvas id="cenario-grafico-anual" height="260"></canvas>
           </div>
         </div>
       </div>
@@ -2341,53 +2341,67 @@ function _renderCenarioKPIs(resumo) {
 
 function _renderCenarioTabela(tabela) {
   const up = s => String(s||'').toUpperCase();
-  const n  = v => v !== 0 ? fmtNum(v) : '<span style="color:#d1d5db">0</span>';
-  const td = 'padding:5px 8px;';
+  const n  = v => v !== 0 ? fmtNum(v) : '<span style="color:#bbb">0</span>';
+  const td = 'padding:4px 7px;white-space:nowrap;';
 
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:12px">
-    <thead><tr style="background:#1a5c5a;color:#fff">
-      <th style="padding:6px 8px;text-align:left;font-size:10px;text-transform:uppercase">Etapa</th>
-      <th style="padding:6px 8px;text-align:right;font-size:10px">CLEAR</th>
-      <th style="padding:6px 8px;text-align:right;font-size:10px">VTV</th>
-      <th style="padding:6px 8px;text-align:right;font-size:10px">O&M</th>
-      <th style="padding:6px 8px;text-align:right;font-size:10px">FATURADO</th>
-      <th style="padding:6px 8px;text-align:right;font-size:10px">TOTAL</th>
+  // Cores padrão por etapa (igual à planilha)
+  const COR = {
+    'AG. IMPORTAÇÃO':    { bg:'#c00000', fg:'#fff', bold:true },
+    'AG. IMPORTACAO':    { bg:'#c00000', fg:'#fff', bold:true },
+    'ENGENHARIA':        { bg:'#f4cccc', fg:'#000', bold:false },
+    'PENDENCIA COMERCIAL':{ bg:'#f4cccc', fg:'#000', bold:false },
+    'FINANCEIRO':        { bg:'#e06c00', fg:'#fff', bold:true },
+    'SILK':              { bg:'#d9ead3', fg:'#000', bold:false },
+    'ATENDER POR SP':    { bg:'#d9ead3', fg:'#000', bold:false },
+    'PCP':               { bg:'#d9ead3', fg:'#000', bold:false },
+    'ESTOQUE':           { bg:'#d9ead3', fg:'#000', bold:false },
+    'PRODUÇÃO':          { bg:'#d9ead3', fg:'#000', bold:false },
+    'PRODUCAO':          { bg:'#d9ead3', fg:'#000', bold:false },
+    'QUALIDADE':         { bg:'#d9ead3', fg:'#000', bold:false },
+    'CONSOLIDAÇÃO':      { bg:'#38761d', fg:'#fff', bold:true },
+    'CONSOLIDACAO':      { bg:'#38761d', fg:'#fff', bold:true },
+    'EXPEDIÇÃO':         { bg:'#38761d', fg:'#fff', bold:true },
+    'EXPEDICAO':         { bg:'#38761d', fg:'#fff', bold:true },
+  };
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead><tr style="background:#1155cc;color:#fff;font-weight:700">
+      <th style="padding:5px 7px;text-align:left;font-size:10px">ETAPA</th>
+      <th style="padding:5px 7px;text-align:right;font-size:10px">CLEAR</th>
+      <th style="padding:5px 7px;text-align:right;font-size:10px">VTV</th>
+      <th style="padding:5px 7px;text-align:right;font-size:10px">O&M</th>
+      <th style="padding:5px 7px;text-align:right;font-size:10px">FATURADO</th>
+      <th style="padding:5px 7px;text-align:right;font-size:10px">TOTAL</th>
     </tr></thead><tbody>`;
 
   for (const r of tabela) {
-    // Rótulo: prioriza coluna B (etapa), usa coluna A (secao) como fallback para cabeçalhos de seção
     const label  = r.etapa || r.secao;
     if (!label) continue;
-
-    const total  = r.clear + r.vtv + r.om + r.faturado;
     const labelU = up(label);
+    const total  = r.clear + r.vtv + r.om + r.faturado;
 
-    // Cabeçalhos de seção (linhas sem valores numéricos que agrupam as etapas)
-    if ((labelU.includes('NÃO FATUR') || labelU.includes('NAO FATUR')) && total === 0 && r.clear === 0) {
-      html += `<tr style="background:#1a2e2e;color:#fff"><td colspan="6" style="${td}font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">⬛ ${esc(label)}</td></tr>`;
-      continue;
-    }
-    if (labelU.includes('FATUR') && !labelU.includes('NÃO') && !labelU.includes('NAO') && total === 0 && r.clear === 0 && !labelU.includes('TOTAL')) {
-      html += `<tr style="background:#1a2e2e;color:#fff"><td colspan="6" style="${td}font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">⬜ ${esc(label)}</td></tr>`;
-      continue;
-    }
+    // Ignora linhas de seção (sem dados, só rótulo agrupador)
+    const isSomenteTitulo = total === 0 && r.clear === 0 && r.vtv === 0 && r.om === 0 && r.faturado === 0
+      && (labelU.includes('FATURÁV') || labelU.includes('FATURAV') || labelU.includes('ITENS'));
+    if (isSomenteTitulo) continue;
 
-    // Cor por tipo de linha
-    let rowStyle = 'border-bottom:1px solid #f3f4f6;';
-    if      (labelU === 'AG. IMPORTAÇÃO' || labelU === 'AG. IMPORTACAO') rowStyle = 'background:#dc2626;color:#fff;font-weight:700;';
-    else if (labelU === 'FINANCEIRO')                                     rowStyle = 'background:#ea580c;color:#fff;font-weight:700;';
-    else if (labelU === 'TOTAIS')                                         rowStyle = 'background:#e5e7eb;font-weight:700;color:#374151;';
-    else if (labelU.includes('NÃO FATUR') || labelU.includes('NAO FATUR')) rowStyle = 'background:#fef3c7;font-weight:700;color:#92400e;';
-    else if (labelU.includes('TOTAL') && labelU.includes('FATUR') && !labelU.includes('NÃO') && !labelU.includes('NAO')) rowStyle = 'background:#d1fae5;font-weight:700;color:#065f46;';
-    else if (labelU.includes('TOTAL GERAL'))                              rowStyle = 'background:#1a5c5a;color:#fff;font-weight:700;';
+    // Cor da linha
+    let bg = '#fff', fg = '#000', bold = false;
+    const cor = COR[labelU] || COR[label.toUpperCase()];
+    if (cor) { bg = cor.bg; fg = cor.fg; bold = cor.bold; }
+    else if (labelU === 'TOTAIS')                              { bg='#e2efda'; fg='#000'; bold=true; }
+    else if (labelU.includes('NÃO FATUR') || labelU.includes('NAO FATUR')) { bg='#f4cccc'; fg='#000'; bold=true; }
+    else if (labelU.includes('TOTAL') && (labelU.includes('FATUR') && !labelU.includes('NÃO') && !labelU.includes('NAO'))) { bg='#d9ead3'; fg='#000'; bold=true; }
+    else if (labelU.includes('TOTAL GERAL') || labelU.includes('GERAL DE PEDIDOS')) { bg='#cfe2f3'; fg='#000'; bold=true; }
 
-    const isTotalRow = labelU.includes('TOTAL') && (labelU.includes('PEDIDOS') || labelU.includes('GERAL'));
+    const rs = `background:${bg};color:${fg};${bold?'font-weight:700;':''}border-bottom:1px solid rgba(0,0,0,.06);`;
+    const isTotalRow = labelU.includes('TOTAL') && (labelU.includes('PEDIDO') || labelU.includes('GERAL'));
 
     if (isTotalRow) {
-      html += `<tr style="${rowStyle}"><td colspan="5" style="${td}font-weight:700">${esc(label)}</td><td style="${td}text-align:right;font-weight:800">${fmtNum(total)}</td></tr>`;
+      html += `<tr style="${rs}"><td colspan="5" style="${td}font-weight:700;font-size:10px">${esc(label)}</td><td style="${td}text-align:right;font-weight:800">${fmtNum(total)}</td></tr>`;
     } else {
-      html += `<tr style="${rowStyle}">
-        <td style="${td}font-weight:600">${esc(label)}</td>
+      html += `<tr style="${rs}">
+        <td style="${td}">${esc(label)}</td>
         <td style="${td}text-align:right">${n(r.clear)}</td>
         <td style="${td}text-align:right">${n(r.vtv)}</td>
         <td style="${td}text-align:right">${n(r.om)}</td>
