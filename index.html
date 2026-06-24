@@ -2337,14 +2337,21 @@ async function gerarCenario() {
 }
 
 function _renderCenarioKPIs(resumo) {
-  const ids = ['kpi-dia','kpi-mes','kpi-2026','kpi-2025','kpi-2024'];
-  resumo.forEach((r, i) => {
-    const el = document.getElementById(ids[i]);
+  const up  = s => String(s||'').toUpperCase();
+  const set = (id, v) => {
+    const el = document.getElementById(id);
     if (!el) return;
-    const v = r.valor;
     el.textContent = v > 0 ? 'R$ ' + fmtNum(v) : 'R$ —';
-    el.style.color = v > 0 ? '#1a2e2e' : '#9ca3af';
-  });
+    el.style.color  = v > 0 ? '#1a2e2e' : '#9ca3af';
+  };
+  for (const r of resumo) {
+    const lu = up(r.label), v = r.valor;
+    if      (lu.includes('HOJE') || lu.includes('DIA'))                        set('kpi-dia',  v);
+    else if (lu.includes('MÊS')  || lu.includes('MES') || lu.includes('ATUAL')) set('kpi-mes',  v);
+    else if (lu.includes('2026'))                                               set('kpi-2026', v);
+    else if (lu.includes('2025'))                                               set('kpi-2025', v);
+    else if (lu.includes('2024'))                                               set('kpi-2024', v);
+  }
 }
 
 function _renderCenarioTabela(tabela) {
@@ -2359,11 +2366,7 @@ function _renderCenarioTabela(tabela) {
     return (0.299*r + 0.587*g + 0.114*b) > 140 ? '#000' : '#fff';
   };
 
-  // Zero discreto adaptado ao fundo (claro ou escuro)
-  const n = (v, bg) => {
-    if (v !== 0) return fmtNum(v);
-    return `<span style="opacity:.3">${fgOf(bg)==='#fff' ? '0' : '0'}</span>`;
-  };
+  const n = v => v !== 0 ? fmtNum(v) : '<span style="color:#bbb">0</span>';
 
   const th = 'padding:6px 8px;font-size:10px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.2);';
   const hoje = new Date().toLocaleDateString('pt-BR');
@@ -2404,10 +2407,10 @@ function _renderCenarioTabela(tabela) {
       // Dados: cor só na coluna Etapa, restante fundo branco letra preta
       html += `<tr style="border-bottom:1px solid #e5e7eb">
         <td style="${p}background:${bg};color:${color};font-weight:600">${esc(r.etapa)}</td>
-        <td style="${p}${branco}text-align:right">${n(r.clear, '#fff')}</td>
-        <td style="${p}${branco}text-align:right">${n(r.vtv,   '#fff')}</td>
-        <td style="${p}${branco}text-align:right">${n(r.om,    '#fff')}</td>
-        <td style="${p}${branco}text-align:right">${n(r.faturado,'#fff')}</td>
+        <td style="${p}${branco}text-align:right">${n(r.clear)}</td>
+        <td style="${p}${branco}text-align:right">${n(r.vtv)}</td>
+        <td style="${p}${branco}text-align:right">${n(r.om)}</td>
+        <td style="${p}${branco}text-align:right">${n(r.faturado)}</td>
         <td style="${p}${branco}text-align:right;font-weight:700">${fmtNum(total)}</td>
       </tr>`;
     }
