@@ -2361,17 +2361,19 @@ function _renderCenarioTabela(tabela) {
     'EXPEDIÇÃO':['#6aa84f','#fff'], 'EXPEDICAO':['#6aa84f','#fff'],
   };
 
-  // Categoriza linhas — TOTAIS (exato) antes do includes('TOTAL')
+  // Seção detectada pelo nome da etapa — sem dependência da coluna A
+  const NFAT = new Set(['AG. IMPORTAÇÃO','AG. IMPORTACAO','ENGENHARIA','PENDENCIA COMERCIAL','FINANCEIRO']);
+  const FAT  = new Set(['SILK','ATENDER POR SP','PCP','ESTOQUE','PRODUÇÃO','PRODUCAO','QUALIDADE','CONSOLIDAÇÃO','CONSOLIDACAO','EXPEDIÇÃO','EXPEDICAO']);
+
   let s1 = [], s2 = [], t1 = null, t2 = null;
-  let sec = '';
   for (const r of tabela) {
-    const label = r.etapa || r.secao;
+    const label = r.etapa;
     if (!label) continue;
     const lu = up(label);
-    if (lu.includes('ITENS'))  { sec = (lu.includes('NÃO')||lu.includes('NAO')) ? 'nfat' : 'fat'; continue; }
-    if (lu === 'TOTAIS')       { if (sec==='nfat') t1=r; else t2=r; continue; }
-    if (lu.includes('TOTAL'))  { continue; } // total pedidos → bloco 3
-    if (sec==='nfat') s1.push(r); else if (sec==='fat') s2.push(r);
+    if (lu === 'TOTAIS') { if (!t1) t1=r; else t2=r; continue; }
+    if (lu.includes('TOTAL')) continue;
+    if (NFAT.has(lu) || NFAT.has(label)) s1.push(r);
+    else if (FAT.has(lu) || FAT.has(label)) s2.push(r);
   }
 
   const th = 'padding:5px 8px;font-size:10px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.15);';
@@ -2382,7 +2384,7 @@ function _renderCenarioTabela(tabela) {
     </tr>`;
 
   const dataRow = (r) => {
-    const label = r.etapa || r.secao;
+    const label = r.etapa;
     const [bg, fg] = COR[up(label)] || ['#fff','#000'];
     const total = r.total || (r.clear + r.vtv + r.om);
     return `<tr style="background:${bg};color:${fg};border-bottom:1px solid rgba(0,0,0,.07)">
