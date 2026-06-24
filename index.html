@@ -947,7 +947,7 @@
         </div>
       </div>
 
-      <!-- BLOCO 1 (Etapas) + BLOCO 2 (Gráfico) — linha única, largura total -->
+      <!-- BLOCO 1 (Etapas) ESQUERDA + BLOCOS 2+3 DIREITA empilhados -->
       <div style="display:flex;gap:12px;align-items:flex-start">
         <!-- Bloco 1: Etapas -->
         <div style="flex:4 1 0;min-width:0;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
@@ -955,20 +955,21 @@
             <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Clique em Atualizar</div></div>
           </div>
         </div>
-        <!-- Bloco 2: Gráfico Anual -->
-        <div style="flex:6 1 0;min-width:0;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Acompanhamento de Vendas Anuais</div>
-          <div style="padding:10px 14px">
-            <canvas id="cenario-grafico-anual" height="180"></canvas>
+        <!-- Coluna direita: Gráfico + Pedidos Totais empilhados -->
+        <div style="flex:6 1 0;min-width:0;display:flex;flex-direction:column;gap:12px">
+          <!-- Bloco 2: Gráfico Anual -->
+          <div style="background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
+            <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Acompanhamento de Vendas Anuais</div>
+            <div style="padding:10px 14px">
+              <canvas id="cenario-grafico-anual" height="180"></canvas>
+            </div>
           </div>
-          <div id="cenario-resumo" style="padding:0 14px 10px"></div>
-        </div>
-      </div>
-
-      <!-- BLOCO 3: Totais de Pedidos -->
-      <div style="background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-        <div id="cenario-pedidos-totais" style="overflow-x:auto">
-          <div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Clique em Atualizar</div></div>
+          <!-- Bloco 3: Pedidos Totais (lido de A19:G21) -->
+          <div style="background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
+            <div id="cenario-pedidos-totais" style="overflow-x:auto">
+              <div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Clique em Atualizar</div></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2323,8 +2324,8 @@ async function gerarCenario() {
 
     _renderCenarioKPIs(res.resumo);
     _renderCenarioTabela(res.tabela);
-    _renderCenarioPedidosTotais(res.tabela);
-    _renderCenarioGraficoAnual(res.anual, res.resumo);
+    _renderCenarioPedidosTotais(res.pedidosTotais);
+    _renderCenarioGraficoAnual(res.anual);
     _renderCenarioGraficoDiario(res.diario);
     _renderCenarioPedidos(res.pedidos);
     _renderCenarioImportacao(res.importacao);
@@ -2383,7 +2384,7 @@ function _renderCenarioTabela(tabela) {
   const dataRow = (r) => {
     const label = r.etapa || r.secao;
     const [bg, fg] = COR[up(label)] || ['#fff','#000'];
-    const total = r.clear + r.vtv + r.om + r.faturado;
+    const total = r.total || (r.clear + r.vtv + r.om);
     return `<tr style="background:${bg};color:${fg};border-bottom:1px solid rgba(0,0,0,.07)">
       <td style="${p}">${esc(label)}</td>
       <td style="${p}text-align:right">${n(r.clear)}</td>
@@ -2395,7 +2396,7 @@ function _renderCenarioTabela(tabela) {
   };
 
   const totaisRow = (r) => {
-    const total = r.clear + r.vtv + r.om + r.faturado;
+    const total = r.total || (r.clear + r.vtv + r.om);
     return `<tr style="background:#1155cc;color:#fff;font-weight:700">
       <td style="${p}font-style:italic">TOTAIS</td>
       <td style="${p}text-align:right">${fmtNum(r.clear)}</td>
@@ -2439,11 +2440,13 @@ function _renderCenarioTabela(tabela) {
   document.getElementById('cenario-tabela').innerHTML = html;
 }
 
-function _renderCenarioPedidosTotais(tabela) {
+function _renderCenarioPedidosTotais(rows) {
+  const el = document.getElementById('cenario-pedidos-totais');
+  if (!rows?.length) { el.innerHTML = ''; return; }
+
   const up = s => String(s||'').toUpperCase();
-  const p  = 'padding:5px 8px;white-space:nowrap;font-size:11px;font-weight:700;';
-  const rows = tabela.filter(r => { const lu=up(r.etapa||r.secao); return lu.includes('TOTAL')&&(lu.includes('PEDIDO')||lu.includes('GERAL')); });
-  if (!rows.length) { document.getElementById('cenario-pedidos-totais').innerHTML=''; return; }
+  const p  = 'padding:6px 10px;white-space:nowrap;font-size:11px;font-weight:700;border-bottom:1px solid rgba(0,0,0,.1);';
+  const th = 'padding:6px 10px;font-size:10px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.15);';
 
   const COR_P = lu => {
     if (lu.includes('NÃO')||lu.includes('NAO')) return ['#f4cccc','#000'];
@@ -2451,33 +2454,31 @@ function _renderCenarioPedidosTotais(tabela) {
     return ['#d9ead3','#000'];
   };
 
-  const th = 'padding:5px 8px;font-size:10px;font-weight:700;text-align:center;border:1px solid rgba(255,255,255,.15);';
   let html = `<table style="width:100%;border-collapse:collapse">
     <thead><tr style="background:#1155cc;color:#fff;font-weight:700">
-      <th style="${th}text-align:left">PEDIDOS — Status</th>
+      <th style="${th}text-align:left;min-width:200px">PEDIDOS — Status</th>
       <th style="${th}">CLEAR</th><th style="${th}">VTV</th><th style="${th}">O&M</th>
-      <th style="${th}">Faturado</th><th style="${th}">Total</th>
+      <th style="${th}">Faturado</th><th style="${th}border-right:none">Total</th>
     </tr></thead><tbody>`;
 
   for (const r of rows) {
-    const label = r.etapa || r.secao;
-    const lu = up(label);
+    const lu = up(r.label);
     const [bg,fg] = COR_P(lu);
-    const total = r.clear + r.vtv + r.om + r.faturado;
-    html += `<tr style="background:${bg};color:${fg};border-bottom:1px solid rgba(0,0,0,.08)">
-      <td style="${p}">${esc(label)}</td>
-      <td style="${p}text-align:right">${fmtNum(r.clear)}</td>
-      <td style="${p}text-align:right">${fmtNum(r.vtv)}</td>
-      <td style="${p}text-align:right">${fmtNum(r.om)}</td>
-      <td style="${p}text-align:right">${fmtNum(r.faturado)}</td>
-      <td style="${p}text-align:right;font-weight:800">${fmtNum(total)}</td>
+    const n = v => v !== 0 ? fmtNum(v) : '<span style="color:#999">0</span>';
+    html += `<tr style="background:${bg};color:${fg}">
+      <td style="${p}">${esc(r.label)}</td>
+      <td style="${p}text-align:right">${n(r.clear)}</td>
+      <td style="${p}text-align:right">${n(r.vtv)}</td>
+      <td style="${p}text-align:right">${n(r.om)}</td>
+      <td style="${p}text-align:right">${n(r.faturado)}</td>
+      <td style="${p}text-align:right;font-weight:800">${fmtNum(r.total)}</td>
     </tr>`;
   }
   html += '</tbody></table>';
-  document.getElementById('cenario-pedidos-totais').innerHTML = html;
+  el.innerHTML = html;
 }
 
-function _renderCenarioGraficoAnual(anual, resumo) {
+function _renderCenarioGraficoAnual(anual) {
   if (_cenarioGraficoAnual) { _cenarioGraficoAnual.destroy(); _cenarioGraficoAnual = null; }
   const ctx = document.getElementById('cenario-grafico-anual').getContext('2d');
   _cenarioGraficoAnual = new Chart(ctx, {
@@ -2493,38 +2494,20 @@ function _renderCenarioGraficoAnual(anual, resumo) {
     options: {
       responsive: true,
       plugins: {
-        legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
+        legend: { position: 'top', labels: { font: { size: 13 }, boxWidth: 14, padding: 14 } },
         datalabels: {
           display: c => c.dataset.data[c.dataIndex] > 0,
           anchor: 'end', align: 'end',
           formatter: v => v > 0 ? (v/1000).toFixed(0)+'k' : '',
-          font: { size: 7, weight: 'bold' }, color: '#374151', rotation: -45
+          font: { size: 8, weight: 'bold' }, color: '#374151', rotation: -45
         }
       },
       scales: {
-        x: { ticks: { font: { size: 9 } } },
-        y: { ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', font: { size: 9 } }, grid: { color: '#f3f4f6' } }
+        x: { ticks: { font: { size: 10 } } },
+        y: { ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', font: { size: 10 } }, grid: { color: '#f3f4f6' } }
       }
     }
   });
-
-  // Resumo abaixo do gráfico em linha horizontal
-  if (resumo?.length) {
-    const up = s => String(s||'').toUpperCase();
-    const lblMap = { '2024':'2024','2025':'2025','2026':'2026','MÊS ATUAL':'Mês Atual','MES ATUAL':'Mês Atual' };
-    const clr = s => { const u=up(s); if (u.includes('2026')) return '#16a34a'; if (u.includes('2025')) return '#dc2626'; if (u.includes('2024')) return '#2563eb'; return '#374151'; };
-    const bdr = s => { const u=up(s); if (u.includes('2026')) return '#16a34a'; if (u.includes('2025')) return '#dc2626'; if (u.includes('2024')) return '#2563eb'; return '#6b7280'; };
-    let html = `<div style="display:flex;gap:8px;flex-wrap:wrap">`;
-    for (const r of resumo) {
-      const lbl = lblMap[up(r.label)] || r.label;
-      html += `<div style="flex:1;min-width:80px;border-left:3px solid ${bdr(r.label)};padding:4px 8px;background:#f9fafb;border-radius:4px">
-        <div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase">${esc(lbl)}</div>
-        <div style="font-size:12px;font-weight:800;color:${clr(r.label)}">${fmtNum(r.valor)}</div>
-      </div>`;
-    }
-    html += `</div>`;
-    document.getElementById('cenario-resumo').innerHTML = html;
-  }
 }
 
 function _renderCenarioGraficoDiario(diario) {
