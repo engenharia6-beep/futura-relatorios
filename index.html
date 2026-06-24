@@ -2338,20 +2338,24 @@ async function gerarCenario() {
 
 function _renderCenarioKPIs(resumo) {
   const up  = s => String(s||'').toUpperCase();
+  const ids = ['kpi-dia','kpi-mes','kpi-2026','kpi-2025','kpi-2024'];
   const set = (id, v) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.textContent = v > 0 ? 'R$ ' + fmtNum(v) : 'R$ —';
+    el.textContent = v > 0 ? 'R$ ' + fmtNum(v) : '—';
     el.style.color  = v > 0 ? '#1a2e2e' : '#9ca3af';
   };
+  const used = new Set();
   for (const r of resumo) {
     const lu = up(r.label), v = r.valor;
-    if      (lu.includes('HOJE') || lu.includes('DIA'))                        set('kpi-dia',  v);
-    else if (lu.includes('MÊS')  || lu.includes('MES') || lu.includes('ATUAL')) set('kpi-mes',  v);
-    else if (lu.includes('2026'))                                               set('kpi-2026', v);
-    else if (lu.includes('2025'))                                               set('kpi-2025', v);
-    else if (lu.includes('2024'))                                               set('kpi-2024', v);
+    if      (lu.includes('HOJE') || lu.includes('DIA'))                          { set('kpi-dia',  v); used.add('kpi-dia');  }
+    else if (lu.includes('MÊS')  || lu.includes('MES') || lu.includes('ATUAL'))  { set('kpi-mes',  v); used.add('kpi-mes');  }
+    else if (lu.includes('2026'))                                                 { set('kpi-2026', v); used.add('kpi-2026'); }
+    else if (lu.includes('2025'))                                                 { set('kpi-2025', v); used.add('kpi-2025'); }
+    else if (lu.includes('2024'))                                                 { set('kpi-2024', v); used.add('kpi-2024'); }
   }
+  // fallback posicional para slots que não tiveram match por label
+  resumo.forEach((r, i) => { if (i < ids.length && !used.has(ids[i])) set(ids[i], r.valor); });
 }
 
 function _renderCenarioTabela(tabela) {
@@ -2366,9 +2370,10 @@ function _renderCenarioTabela(tabela) {
     return (0.299*r + 0.587*g + 0.114*b) > 140 ? '#000' : '#fff';
   };
 
-  const n = v => v !== 0 ? fmtNum(v) : '<span style="color:#bbb">0</span>';
+  const fi = v => Math.round(Number(v)||0).toLocaleString('pt-BR');
+  const n  = v => v !== 0 ? fi(v) : '<span style="color:#bbb">0</span>';
 
-  const th = 'padding:6px 8px;font-size:10px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.2);';
+  const th = 'padding:6px 8px;font-size:10px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.2);color:#fff;';
   const hoje = new Date().toLocaleDateString('pt-BR');
 
   let html = `
@@ -2394,14 +2399,14 @@ function _renderCenarioTabela(tabela) {
     const total = r.total || (r.clear + r.vtv + r.om);
 
     if (isTot) {
-      // TOTAIS: fundo colorido em todas as colunas, branco negrito
-      html += `<tr style="background:${bg};color:${color};font-weight:700;border-bottom:1px solid rgba(0,0,0,.1)">
-        <td style="${p}font-style:italic">${esc(r.etapa)}</td>
-        <td style="${p}text-align:right">${fmtNum(r.clear)}</td>
-        <td style="${p}text-align:right">${fmtNum(r.vtv)}</td>
-        <td style="${p}text-align:right">${fmtNum(r.om)}</td>
-        <td style="${p}text-align:right">${fmtNum(r.faturado)}</td>
-        <td style="${p}text-align:right;font-weight:800">${fmtNum(total)}</td>
+      const fw = `color:${color};font-weight:700;`;
+      html += `<tr style="background:${bg};border-bottom:1px solid rgba(0,0,0,.1)">
+        <td style="${p}${fw}font-style:italic">${esc(r.etapa)}</td>
+        <td style="${p}${fw}text-align:right">${fi(r.clear)}</td>
+        <td style="${p}${fw}text-align:right">${fi(r.vtv)}</td>
+        <td style="${p}${fw}text-align:right">${fi(r.om)}</td>
+        <td style="${p}${fw}text-align:right">${fi(r.faturado)}</td>
+        <td style="${p}${fw}text-align:right;font-weight:800">${fi(total)}</td>
       </tr>`;
     } else {
       // Dados: cor só na coluna Etapa, restante fundo branco letra preta
@@ -2411,7 +2416,7 @@ function _renderCenarioTabela(tabela) {
         <td style="${p}${branco}text-align:right">${n(r.vtv)}</td>
         <td style="${p}${branco}text-align:right">${n(r.om)}</td>
         <td style="${p}${branco}text-align:right">${n(r.faturado)}</td>
-        <td style="${p}${branco}text-align:right;font-weight:700">${fmtNum(total)}</td>
+        <td style="${p}${branco}text-align:right;font-weight:700">${fi(total)}</td>
       </tr>`;
     }
   }
@@ -2426,7 +2431,8 @@ function _renderCenarioPedidosTotais(rows) {
 
   const up = s => String(s||'').toUpperCase();
   const p  = 'padding:6px 10px;white-space:nowrap;font-size:11px;font-weight:700;border-bottom:1px solid rgba(0,0,0,.1);';
-  const th = 'padding:6px 10px;font-size:10px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.15);';
+  const th = 'padding:6px 10px;font-size:10px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,.15);color:#fff;';
+  const fi = v => Math.round(Number(v)||0).toLocaleString('pt-BR');
 
   const COR_P = lu => {
     if (lu.includes('NÃO')||lu.includes('NAO')) return ['#f4cccc','#000'];
@@ -2435,7 +2441,7 @@ function _renderCenarioPedidosTotais(rows) {
   };
 
   let html = `<table style="width:100%;border-collapse:collapse">
-    <thead><tr style="background:#1155cc;color:#fff;font-weight:700">
+    <thead><tr style="background:#1155cc">
       <th style="${th}text-align:left;min-width:200px">PEDIDOS — Status</th>
       <th style="${th}">CLEAR</th><th style="${th}">VTV</th><th style="${th}">O&M</th>
       <th style="${th}">Faturado</th><th style="${th}border-right:none">Total</th>
@@ -2445,14 +2451,14 @@ function _renderCenarioPedidosTotais(rows) {
     const label = r.label.replace(/^TOTAL DE PEDIDOS\s*/i, '').trim();
     const lu = up(label);
     const [bg,fg] = COR_P(lu);
-    const n = v => v !== 0 ? fmtNum(v) : '<span style="color:#999">0</span>';
+    const n = v => v !== 0 ? fi(v) : '<span style="color:#999">0</span>';
     html += `<tr style="background:${bg};color:${fg}">
       <td style="${p}">${esc(label)}</td>
       <td style="${p}text-align:right">${n(r.clear)}</td>
       <td style="${p}text-align:right">${n(r.vtv)}</td>
       <td style="${p}text-align:right">${n(r.om)}</td>
       <td style="${p}text-align:right">${n(r.faturado)}</td>
-      <td style="${p}text-align:right;font-weight:800">${fmtNum(r.total)}</td>
+      <td style="${p}text-align:right;font-weight:800">${fi(r.total)}</td>
     </tr>`;
   }
   html += '</tbody></table>';
