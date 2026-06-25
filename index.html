@@ -2572,7 +2572,9 @@ function _renderCenarioPedidos(pedidos) {
       <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Valor</th>
       <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Status</th>
     </tr></thead><tbody>`;
+  let totalPed = 0;
   for (const p of pedidos) {
+    totalPed += p.valor;
     const bg = p.chave === 2 ? 'background:#fed7aa;' : 'background:#d1fae5;';
     const status = p.status ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#fef3c7;color:#92400e;font-weight:600">${esc(p.status)}</span>` : '';
     html += `<tr style="${bg}border-bottom:1px solid rgba(0,0,0,.05)">
@@ -2582,7 +2584,11 @@ function _renderCenarioPedidos(pedidos) {
       <td style="padding:5px 8px">${status}</td>
     </tr>`;
   }
-  html += '</tbody></table>';
+  html += `</tbody><tfoot><tr style="background:#1c4587;color:#fff;font-weight:700">
+    <td colspan="2" style="padding:6px 8px;font-size:11px">TOTAL</td>
+    <td style="padding:6px 8px;text-align:right;font-size:12px">${fmtNum(totalPed)}</td>
+    <td></td>
+  </tr></tfoot></table>`;
   document.getElementById('cenario-pedidos').innerHTML = html;
 }
 
@@ -2597,7 +2603,9 @@ function _renderCenarioNaoFaturavel(rows) {
       <th style="${th}text-align:right">Valor</th>
       <th style="${th}">Motivos</th>
     </tr></thead><tbody>`;
+  let totalNF = 0;
   for (const p of rows) {
+    totalNF += p.valor;
     html += `<tr style="background:#fef9c3;border-bottom:1px solid rgba(0,0,0,.05)">
       <td style="padding:5px 8px;font-family:monospace;font-weight:700">${esc(p.pedido)}</td>
       <td style="padding:5px 8px">${esc(p.cliente)}</td>
@@ -2605,7 +2613,11 @@ function _renderCenarioNaoFaturavel(rows) {
       <td style="padding:5px 8px;color:#92400e;font-weight:600">${esc(p.motivos)}</td>
     </tr>`;
   }
-  html += '</tbody></table>';
+  html += `</tbody><tfoot><tr style="background:#1c4587;color:#fff;font-weight:700">
+    <td colspan="2" style="padding:6px 8px;font-size:11px">TOTAL</td>
+    <td style="padding:6px 8px;text-align:right;font-size:12px">${fmtNum(totalNF)}</td>
+    <td></td>
+  </tr></tfoot></table>`;
   el.innerHTML = html;
 }
 
