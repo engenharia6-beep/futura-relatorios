@@ -2584,10 +2584,11 @@ function _renderCenarioPedidos(pedidos) {
       <td style="padding:5px 8px">${status}</td>
     </tr>`;
   }
-  html += `</tbody><tfoot><tr style="background:#1c4587;color:#fff;font-weight:700">
-    <td colspan="2" style="padding:6px 8px;font-size:11px">TOTAL</td>
-    <td style="padding:6px 8px;text-align:right;font-size:12px">${fmtNum(totalPed)}</td>
-    <td></td>
+  const ft = 'padding:6px 8px;color:#fff;font-weight:700;';
+  html += `</tbody><tfoot><tr style="background:#1c4587">
+    <td colspan="2" style="${ft}font-size:11px">TOTAL</td>
+    <td style="${ft}text-align:right;font-size:12px">${fmtNum(totalPed)}</td>
+    <td style="${ft}"></td>
   </tr></tfoot></table>`;
   document.getElementById('cenario-pedidos').innerHTML = html;
 }
@@ -2613,10 +2614,11 @@ function _renderCenarioNaoFaturavel(rows) {
       <td style="padding:5px 8px;color:#92400e;font-weight:600">${esc(p.motivos)}</td>
     </tr>`;
   }
-  html += `</tbody><tfoot><tr style="background:#1c4587;color:#fff;font-weight:700">
-    <td colspan="2" style="padding:6px 8px;font-size:11px">TOTAL</td>
-    <td style="padding:6px 8px;text-align:right;font-size:12px">${fmtNum(totalNF)}</td>
-    <td></td>
+  const ft = 'padding:6px 8px;color:#fff;font-weight:700;';
+  html += `</tbody><tfoot><tr style="background:#1c4587">
+    <td colspan="2" style="${ft}font-size:11px">TOTAL</td>
+    <td style="${ft}text-align:right;font-size:12px">${fmtNum(totalNF)}</td>
+    <td style="${ft}"></td>
   </tr></tfoot></table>`;
   el.innerHTML = html;
 }
@@ -2624,28 +2626,52 @@ function _renderCenarioNaoFaturavel(rows) {
 function _renderCenarioImportacao(importacao) {
   const el = document.getElementById('cenario-importacao');
   if (!importacao?.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🚢</div><div class="empty-text">Nenhum pedido aguardando.</div></div>'; return; }
-  const th = 'padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;white-space:nowrap;';
-  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+
+  // colunas fixas estreitas; insumos ocupa o resto
+  const thN = 'padding:6px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;white-space:nowrap;';
+  const thW = 'width:'; // usado inline abaixo
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
+    <colgroup>
+      <col style="width:75px">
+      <col style="width:200px">
+      <col style="width:95px">
+      <col style="width:55px">
+      <col style="width:90px">
+      <col>
+    </colgroup>
     <thead><tr style="background:#f9fafb">
-      <th style="${th}">Pedido</th>
-      <th style="${th}">Cliente</th>
-      <th style="${th}">Produto</th>
-      <th style="${th}text-align:right">Qtde</th>
-      <th style="${th}text-align:right">Valor</th>
-      <th style="${th}min-width:220px">Status / Insumos</th>
+      <th style="${thN}">Pedido</th>
+      <th style="${thN}text-align:left">Cliente</th>
+      <th style="${thN}">Produto</th>
+      <th style="${thN}text-align:right">Qtde</th>
+      <th style="${thN}text-align:right">Valor</th>
+      <th style="${thN}text-align:left">Status / Insumos</th>
     </tr></thead><tbody>`;
+
+  let totalQtde = 0, totalValor = 0;
   for (const p of importacao) {
-    const status = p.status ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#e0e7ff;color:#3730a3;font-weight:600;word-break:break-word">${esc(p.status)}</span>` : '';
+    totalQtde += p.qtde;
+    totalValor += p.valor;
+    const status = p.status ? `<span style="font-size:10px;padding:2px 5px;border-radius:4px;background:#e0e7ff;color:#3730a3;font-weight:600;word-break:break-all">${esc(p.status)}</span>` : '';
     html += `<tr style="border-bottom:1px solid #f3f4f6">
-      <td style="padding:5px 8px;font-family:monospace;font-weight:700;white-space:nowrap">${esc(p.pedido)}</td>
-      <td style="padding:5px 8px">${esc(p.cliente)}</td>
-      <td style="padding:5px 8px;font-family:monospace">${esc(p.produto)}</td>
+      <td style="padding:5px 8px;font-family:monospace;font-weight:700;overflow:hidden;text-overflow:ellipsis">${esc(p.pedido)}</td>
+      <td style="padding:5px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.cliente)}">${esc(p.cliente)}</td>
+      <td style="padding:5px 8px;font-family:monospace;overflow:hidden;text-overflow:ellipsis">${esc(p.produto)}</td>
       <td style="padding:5px 8px;text-align:right">${p.qtde || ''}</td>
-      <td style="padding:5px 8px;text-align:right;font-weight:600;white-space:nowrap">${fmtNum(p.valor)}</td>
+      <td style="padding:5px 8px;text-align:right;font-weight:600">${fmtNum(p.valor)}</td>
       <td style="padding:5px 8px">${status}</td>
     </tr>`;
   }
-  html += '</tbody></table>';
+
+  const ft = 'padding:6px 8px;color:#fff;font-weight:700;';
+  html += `</tbody><tfoot><tr style="background:#1c4587">
+    <td colspan="2" style="${ft}font-size:11px">TOTAL</td>
+    <td style="${ft}"></td>
+    <td style="${ft}text-align:right">${totalQtde}</td>
+    <td style="${ft}text-align:right">${fmtNum(totalValor)}</td>
+    <td style="${ft}"></td>
+  </tr></tfoot></table>`;
   el.innerHTML = html;
 }
 
