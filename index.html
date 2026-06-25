@@ -76,6 +76,27 @@
     .rel-card-desc{font-size:12px;color:var(--text-muted);line-height:1.5}
     .rel-card-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(26,92,90,.1);color:var(--accent)}
 
+    /* ── Modal Personalizar Cards ── */
+    .modal-cards-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto}
+    .modal-cards-overlay.visible{display:flex}
+    .modal-cards-box{background:#fff;border-radius:var(--radius);width:100%;max-width:900px;box-shadow:0 8px 40px rgba(0,0,0,.18);display:flex;flex-direction:column}
+    .modal-cards-head{display:flex;align-items:center;padding:18px 20px;border-bottom:1.5px solid var(--border);gap:12px}
+    .modal-cards-head h2{flex:1;font-size:16px;font-weight:700;color:var(--text)}
+    .modal-cards-body{padding:16px 20px;overflow-x:auto}
+    .modal-cards-foot{padding:14px 20px;border-top:1.5px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+    .cards-table{width:100%;border-collapse:collapse;font-size:13px}
+    .cards-table th{background:#f5f8f9;color:var(--text-label);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:1.5px solid var(--border);white-space:nowrap;text-align:left}
+    .cards-table td{padding:6px 6px;border-bottom:1px solid #eef2f3;vertical-align:middle}
+    .cards-table tr:last-child td{border-bottom:none}
+    .cards-table input[type=text],.cards-table textarea{width:100%;border:1.5px solid var(--border);border-radius:5px;padding:5px 8px;font-family:var(--font);font-size:12px;color:var(--text);resize:none;background:#fff}
+    .cards-table input[type=text]:focus,.cards-table textarea:focus{outline:none;border-color:var(--accent)}
+    .cards-table textarea{height:52px;line-height:1.4}
+    .cards-table input[type=color]{width:38px;height:28px;border:1.5px solid var(--border);border-radius:5px;cursor:pointer;padding:2px}
+    .cards-table .btn-ord{width:26px;height:26px;padding:0;background:#f0f4f5;border:1.5px solid var(--border);border-radius:4px;font-size:13px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-muted)}
+    .cards-table .btn-ord:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .cards-table .btn-del{width:26px;height:26px;padding:0;background:#fff0f0;border:1.5px solid #fca5a5;border-radius:4px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;color:#dc2626}
+    .cards-table .btn-del:hover{background:#dc2626;color:#fff}
+
     /* ── Dashboard de Vendas ── */
     .vendas-sub{margin-top:4px}
     .vendas-cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
@@ -289,89 +310,43 @@
 
     <!-- Menu de relatórios -->
     <div id="menu-relatorios">
-      <div style="margin-bottom:20px">
-        <div style="font-size:22px;font-weight:800;color:var(--text)">Relatórios</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-top:3px">Selecione o relatório desejado</div>
+      <div style="margin-bottom:20px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1">
+          <div style="font-size:22px;font-weight:800;color:var(--text)">Relatórios</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:3px">Selecione o relatório desejado</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="abrirPersonalizarCards()">⚙ Personalizar</button>
       </div>
-      <div class="relatorios-grid">
+      <div id="relatorios-grid-render" class="relatorios-grid"></div>
+    </div>
 
-        <div class="rel-card" onclick="abrirRelatorio('movimentos')">
-          <div class="rel-card-icon">🔄</div>
-          <div class="rel-card-title">Movimentos por Período</div>
-          <div class="rel-card-desc">Entradas e saídas de Insumos e PA em um intervalo de datas, com filtros por produto, usuário e OP.</div>
-          <div><span class="rel-card-badge">Insumos + PA</span></div>
+    <!-- Modal Personalizar Cards -->
+    <div id="modal-cards" class="modal-cards-overlay" onclick="if(event.target===this)fecharPersonalizarCards()">
+      <div class="modal-cards-box">
+        <div class="modal-cards-head">
+          <h2>⚙ Personalizar Relatórios</h2>
+          <button class="btn btn-secondary btn-sm" onclick="fecharPersonalizarCards()">✕ Fechar</button>
         </div>
-
-        <div class="rel-card" onclick="abrirRelatorio('estoque-insumos')">
-          <div class="rel-card-icon">📦</div>
-          <div class="rel-card-title">Posição de Estoque — Insumos</div>
-          <div class="rel-card-desc">Saldo atual de todos os insumos com endereço, estoque mínimo e status (ok / crítico / zerado).</div>
-          <div><span class="rel-card-badge">Insumos</span></div>
+        <div class="modal-cards-body">
+          <table class="cards-table">
+            <thead>
+              <tr>
+                <th style="width:60px">Ordem</th>
+                <th style="width:54px">Ícone</th>
+                <th style="width:200px">Título</th>
+                <th>Descrição</th>
+                <th style="width:110px">Etiqueta</th>
+                <th style="width:50px">Cor</th>
+                <th style="width:36px"></th>
+              </tr>
+            </thead>
+            <tbody id="cards-table-body"></tbody>
+          </table>
         </div>
-
-        <div class="rel-card" onclick="abrirRelatorio('estoque-pa')">
-          <div class="rel-card-icon">🏭</div>
-          <div class="rel-card-title">Posição de Estoque — PA</div>
-          <div class="rel-card-desc">Saldo atual de todos os produtos acabados com endereço e status.</div>
-          <div><span class="rel-card-badge">Produtos Acabados</span></div>
+        <div class="modal-cards-foot">
+          <button class="btn btn-secondary btn-sm" onclick="resetarCardsPadrao()">↺ Restaurar padrão</button>
+          <button class="btn btn-primary btn-sm" onclick="salvarPersonalizarCards()">✔ Salvar</button>
         </div>
-
-        <div class="rel-card" onclick="abrirRelatorio('ops')">
-          <div class="rel-card-icon">📋</div>
-          <div class="rel-card-title">OPs por Período</div>
-          <div class="rel-card-desc">Ordens de produção pagas em um intervalo de datas com código, descrição, qtde e pedido.</div>
-          <div><span class="rel-card-badge">Ordens de Produção</span></div>
-        </div>
-
-        <div class="rel-card" onclick="abrirRelatorio('abc')">
-          <div class="rel-card-icon">📊</div>
-          <div class="rel-card-title">Curva ABC</div>
-          <div class="rel-card-desc">Produtos classificados por volume de movimentação no período. Identifica os itens mais críticos.</div>
-          <div><span class="rel-card-badge">Análise</span></div>
-        </div>
-
-        <div class="rel-card" onclick="abrirRelatorio('extrato')">
-          <div class="rel-card-icon">🔍</div>
-          <div class="rel-card-title">Extrato de Produto</div>
-          <div class="rel-card-desc">Histórico completo de um produto específico com saldo progressivo a cada movimento.</div>
-          <div><span class="rel-card-badge">Insumo ou PA</span></div>
-        </div>
-
-        <div class="rel-card" onclick="abrirRelatorio('compras')" style="border-color:rgba(217,119,6,.3);background:rgba(217,119,6,.03)">
-          <div class="rel-card-icon">🛒</div>
-          <div class="rel-card-title">Lista de Compras</div>
-          <div class="rel-card-desc">Gera lista de compras por itens críticos (zerado/mínimo/ponto de pedido) ou baseada na estrutura de PAs a produzir.</div>
-          <div><span class="rel-card-badge" style="background:rgba(217,119,6,.15);color:#b45309">Compras</span></div>
-        </div>
-
-        <div class="rel-card" onclick="abrirRelatorio('fechamento')" style="border-color:rgba(124,58,237,.3);background:rgba(124,58,237,.03)">
-          <div class="rel-card-icon">📅</div>
-          <div class="rel-card-title">Fechamento Mensal M5/M3</div>
-          <div class="rel-card-desc">Calcula o fechamento mensal de Insumos (M5) e Produtos Acabados (M3) com saldo inicial, entradas, saídas e arquiva no histórico.</div>
-          <div><span class="rel-card-badge" style="background:rgba(124,58,237,.15);color:#6d28d9">Fechamento</span></div>
-        </div>
-
-        <div class="rel-card" onclick="abrirRelatorio('vendas'); carregarVendas();" style="border-color:rgba(13,148,136,.3);background:rgba(13,148,136,.03)">
-          <div class="rel-card-icon">💹</div>
-          <div class="rel-card-title">Dashboard de Vendas</div>
-          <div class="rel-card-desc">Faturamento por vertical, ranking de vendedores e produtos, comparação anual e evolução mensal — dados da planilha de vendas.</div>
-          <div><span class="rel-card-badge" style="background:rgba(13,148,136,.15);color:#0d7a6e">Vendas</span></div>
-        </div>
-
-        <div class="rel-card" onclick="abrirRelatorio('cenario'); gerarCenario();" style="border-color:rgba(220,38,38,.3);background:rgba(220,38,38,.03)">
-          <div class="rel-card-icon">📊</div>
-          <div class="rel-card-title">Cenário de Momento</div>
-          <div class="rel-card-desc">Painel em tempo real com etapas de pedidos, faturamento diário/anual e relação de pedidos faturáveis e aguardando importação.</div>
-          <div><span class="rel-card-badge" style="background:rgba(220,38,38,.15);color:#dc2626">Comercial</span></div>
-        </div>
-
-        <div class="rel-card" onclick="abrirModalGuia()" style="border-color:rgba(14,165,233,.3);background:rgba(14,165,233,.03)">
-          <div class="rel-card-icon">📄</div>
-          <div class="rel-card-title">Guia de Documentação</div>
-          <div class="rel-card-desc">Abra um modal interno para carregar o PDF e consultar o guia dentro do app.</div>
-          <div><span class="rel-card-badge" style="background:rgba(14,165,233,.15);color:#0ea5e9">Docs</span></div>
-        </div>
-
       </div>
     </div>
 
@@ -915,7 +890,7 @@
     <div id="rel-cenario" class="rel-panel">
       <div class="rel-header">
         <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
-        <div class="rel-title">📊 Cenário de Momento</div>
+        <div class="rel-title">📊 Acompanhamento Fabril</div>
         <div class="rel-actions">
           <span id="cenario-data" style="font-size:11px;color:var(--text-muted);margin-right:8px"></span>
           <button class="btn btn-primary btn-sm" onclick="gerarCenario()">⟳ Atualizar</button>
@@ -1110,10 +1085,130 @@ async function fazerLogin() {
   finally { btn.disabled = false; btn.innerHTML = 'Entrar'; }
 }
 
+// ══════════════════════════════════════════════════════
+//  CARDS DO MENU — dados e renderização
+// ══════════════════════════════════════════════════════
+const CARDS_PADRAO = [
+  { id:'cenario',         icon:'📊', title:'Acompanhamento Fabril',      desc:'Painel em tempo real com etapas de pedidos, faturamento diário/anual e relação de pedidos faturáveis e aguardando importação.', badge:'PCP',              cor:'#dc2626', action:"abrirRelatorio('cenario'); gerarCenario();" },
+  { id:'movimentos',      icon:'🔄', title:'Movimentos por Período',      desc:'Entradas e saídas de Insumos e PA em um intervalo de datas, com filtros por produto, usuário e OP.',                             badge:'Insumos + PA',     cor:'',        action:"abrirRelatorio('movimentos')" },
+  { id:'estoque-insumos', icon:'📦', title:'Posição de Estoque — Insumos',desc:'Saldo atual de todos os insumos com endereço, estoque mínimo e status (ok / crítico / zerado).',                                badge:'Insumos',          cor:'',        action:"abrirRelatorio('estoque-insumos')" },
+  { id:'estoque-pa',      icon:'🏭', title:'Posição de Estoque — PA',     desc:'Saldo atual de todos os produtos acabados com endereço e status.',                                                                badge:'Produtos Acabados',cor:'',        action:"abrirRelatorio('estoque-pa')" },
+  { id:'ops',             icon:'📋', title:'OPs por Período',             desc:'Ordens de produção pagas em um intervalo de datas com código, descrição, qtde e pedido.',                                        badge:'Ordens de Produção',cor:'',       action:"abrirRelatorio('ops')" },
+  { id:'abc',             icon:'📊', title:'Curva ABC',                   desc:'Produtos classificados por volume de movimentação no período. Identifica os itens mais críticos.',                                badge:'Análise',          cor:'',        action:"abrirRelatorio('abc')" },
+  { id:'extrato',         icon:'🔍', title:'Extrato de Produto',          desc:'Histórico completo de um produto específico com saldo progressivo a cada movimento.',                                            badge:'Insumo ou PA',     cor:'',        action:"abrirRelatorio('extrato')" },
+  { id:'compras',         icon:'🛒', title:'Lista de Compras',            desc:'Gera lista de compras por itens críticos (zerado/mínimo/ponto de pedido) ou baseada na estrutura de PAs a produzir.',            badge:'Compras',          cor:'#d97706', action:"abrirRelatorio('compras')" },
+  { id:'fechamento',      icon:'📅', title:'Fechamento Mensal M5/M3',     desc:'Calcula o fechamento mensal de Insumos (M5) e Produtos Acabados (M3) com saldo inicial, entradas, saídas e arquiva no histórico.',badge:'Fechamento',       cor:'#7c3aed', action:"abrirRelatorio('fechamento')" },
+  { id:'vendas',          icon:'💹', title:'Dashboard de Vendas',         desc:'Faturamento por vertical, ranking de vendedores e produtos, comparação anual e evolução mensal — dados da planilha de vendas.',  badge:'Vendas',           cor:'#0d9488', action:"abrirRelatorio('vendas'); carregarVendas();" },
+  { id:'guia',            icon:'📄', title:'Guia de Documentação',        desc:'Abra um modal interno para carregar o PDF e consultar o guia dentro do app.',                                                    badge:'Docs',             cor:'#0ea5e9', action:"abrirModalGuia()" },
+];
+
+function _hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+function carregarCards() {
+  try { return JSON.parse(localStorage.getItem('cards_config')) || CARDS_PADRAO; }
+  catch { return CARDS_PADRAO; }
+}
+
+function renderMenu() {
+  const cards = carregarCards();
+  const grid  = document.getElementById('relatorios-grid-render');
+  grid.innerHTML = cards.map(c => {
+    let estilo = '', badgeEstilo = '';
+    if (c.cor) {
+      const rgb = _hexToRgb(c.cor);
+      estilo      = `border-color:rgba(${rgb},.3);background:rgba(${rgb},.03)`;
+      badgeEstilo = `background:rgba(${rgb},.15);color:${c.cor}`;
+    }
+    return `<div class="rel-card" onclick="${c.action}"${estilo ? ` style="${estilo}"` : ''}>
+      <div class="rel-card-icon">${c.icon}</div>
+      <div class="rel-card-title">${c.title}</div>
+      <div class="rel-card-desc">${c.desc}</div>
+      <div><span class="rel-card-badge"${badgeEstilo ? ` style="${badgeEstilo}"` : ''}>${c.badge}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Modal Personalizar ──
+function abrirPersonalizarCards() {
+  const cards = carregarCards();
+  const tbody = document.getElementById('cards-table-body');
+  tbody.innerHTML = cards.map((c, i) => `
+    <tr data-idx="${i}">
+      <td style="text-align:center">
+        <button class="btn-ord" onclick="_moverCard(${i},-1)" title="Subir">▲</button>
+        <button class="btn-ord" style="margin-left:2px" onclick="_moverCard(${i},1)" title="Descer">▼</button>
+      </td>
+      <td><input type="text" value="${c.icon}" data-field="icon" style="width:48px;text-align:center"></td>
+      <td><input type="text" value="${_esc(c.title)}" data-field="title"></td>
+      <td><textarea data-field="desc">${_esc(c.desc)}</textarea></td>
+      <td><input type="text" value="${_esc(c.badge)}" data-field="badge"></td>
+      <td><input type="color" value="${c.cor || '#1a5c5a'}" data-field="cor" title="Cor do destaque"></td>
+      <td><button class="btn-del" onclick="_removerCard(${i})" title="Remover">✕</button></td>
+    </tr>`).join('');
+  document.getElementById('modal-cards').classList.add('visible');
+}
+
+function fecharPersonalizarCards() {
+  document.getElementById('modal-cards').classList.remove('visible');
+}
+
+function _esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function _lerLinhasTabela() {
+  return Array.from(document.querySelectorAll('#cards-table-body tr')).map(tr => {
+    const idx = +tr.dataset.idx;
+    const orig = carregarCards()[idx] || {};
+    return {
+      id:     orig.id     || 'custom_' + Date.now(),
+      action: orig.action || '',
+      icon:   tr.querySelector('[data-field=icon]').value.trim(),
+      title:  tr.querySelector('[data-field=title]').value.trim(),
+      desc:   tr.querySelector('[data-field=desc]').value.trim(),
+      badge:  tr.querySelector('[data-field=badge]').value.trim(),
+      cor:    tr.querySelector('[data-field=cor]').value,
+    };
+  });
+}
+
+function _moverCard(idx, dir) {
+  const cards = _lerLinhasTabela();
+  const novo  = idx + dir;
+  if (novo < 0 || novo >= cards.length) return;
+  [cards[idx], cards[novo]] = [cards[novo], cards[idx]];
+  localStorage.setItem('cards_config', JSON.stringify(cards));
+  abrirPersonalizarCards();
+}
+
+function _removerCard(idx) {
+  if (!confirm('Remover este card do menu?')) return;
+  const cards = _lerLinhasTabela();
+  cards.splice(idx, 1);
+  localStorage.setItem('cards_config', JSON.stringify(cards));
+  abrirPersonalizarCards();
+}
+
+function salvarPersonalizarCards() {
+  const cards = _lerLinhasTabela();
+  localStorage.setItem('cards_config', JSON.stringify(cards));
+  fecharPersonalizarCards();
+  renderMenu();
+}
+
+function resetarCardsPadrao() {
+  if (!confirm('Restaurar a configuração original dos cards?')) return;
+  localStorage.removeItem('cards_config');
+  fecharPersonalizarCards();
+  renderMenu();
+}
+
 function entrarNoApp() {
   document.getElementById('page-login').style.display = 'none';
   document.getElementById('app').classList.add('visible');
   document.getElementById('header-user').textContent = USUARIO.nome || USUARIO.usuario;
+  renderMenu();
   voltarMenu();
 }
 
@@ -1143,7 +1238,7 @@ function abrirRelatorio(id) {
     'compras':          '🛒 Lista de Compras',
     'fechamento':       '📅 Fechamento Mensal',
     'vendas':           '💹 Dashboard de Vendas',
-    'cenario':          '📊 Cenário de Momento',
+    'cenario':          '📊 Acompanhamento Fabril',
   }[id] || 'Relatórios';
 }
 
