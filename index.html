@@ -76,6 +76,18 @@
     .rel-card-desc{font-size:12px;color:var(--text-muted);line-height:1.5}
     .rel-card-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(26,92,90,.1);color:var(--accent)}
 
+    /* ── Lightbox de foto ── */
+    #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:2000;align-items:center;justify-content:center;cursor:zoom-out}
+    #lightbox.visible{display:flex}
+    #lightbox-img{max-width:90vw;max-height:85vh;border-radius:10px;box-shadow:0 8px 48px rgba(0,0,0,.6);object-fit:contain;background:#1a1a1a;transition:opacity .18s;opacity:0}
+    #lightbox-img.loaded{opacity:1}
+    #lightbox-spinner{position:absolute;width:40px;height:40px;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    #lightbox-close{position:absolute;top:16px;right:20px;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .18s}
+    #lightbox-close:hover{background:rgba(255,255,255,.25)}
+    #lightbox-desc{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.8);font-size:12px;background:rgba(0,0,0,.5);padding:4px 14px;border-radius:20px;white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+    .foto-zoom{cursor:zoom-in!important;transition:opacity .15s}
+    .foto-zoom:hover{opacity:.82}
+
     /* ── Modal Personalizar Cards ── */
     .modal-cards-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto}
     .modal-cards-overlay.visible{display:flex}
@@ -349,6 +361,14 @@
         <button class="btn btn-secondary btn-sm" onclick="abrirPersonalizarCards()">⚙ Personalizar</button>
       </div>
       <div id="relatorios-grid-render" class="relatorios-grid"></div>
+    </div>
+
+    <!-- Lightbox de foto -->
+    <div id="lightbox" onclick="fecharLightbox()">
+      <div id="lightbox-spinner"></div>
+      <img id="lightbox-img" src="" alt="">
+      <button id="lightbox-close" onclick="fecharLightbox()" title="Fechar">✕</button>
+      <div id="lightbox-desc"></div>
     </div>
 
     <!-- Modal Personalizar Cards -->
@@ -1463,6 +1483,37 @@ async function desativarUsuario(id) {
   } catch(e) { alert('Erro: ' + e.message); }
 }
 
+// ══════════════════════════════════════════════════════
+//  LIGHTBOX DE FOTO
+// ══════════════════════════════════════════════════════
+function abrirLightboxEl(el) {
+  abrirLightbox(el.dataset.src || el.src, el.dataset.desc || '');
+}
+
+function abrirLightbox(urlGrande, desc) {
+  const lb      = document.getElementById('lightbox');
+  const img     = document.getElementById('lightbox-img');
+  const spinner = document.getElementById('lightbox-spinner');
+  const caption = document.getElementById('lightbox-desc');
+  img.classList.remove('loaded');
+  spinner.style.display = 'block';
+  caption.textContent   = desc || '';
+  caption.style.display = desc ? 'block' : 'none';
+  img.onload  = () => { spinner.style.display = 'none'; img.classList.add('loaded'); };
+  img.onerror = () => { spinner.style.display = 'none'; img.alt = 'Imagem não disponível'; img.classList.add('loaded'); };
+  img.src = urlGrande;
+  lb.classList.add('visible');
+  document.addEventListener('keydown', _lbKeyDown);
+}
+
+function fecharLightbox() {
+  document.getElementById('lightbox').classList.remove('visible');
+  document.getElementById('lightbox-img').src = '';
+  document.removeEventListener('keydown', _lbKeyDown);
+}
+
+function _lbKeyDown(e) { if (e.key === 'Escape') fecharLightbox(); }
+
 function entrarNoApp() {
   document.getElementById('page-login').style.display = 'none';
   document.getElementById('app').classList.add('visible');
@@ -1611,7 +1662,7 @@ async function gerarMovimentos() {
 // Renderiza linhas de movimentos
 function _rowMov(m) {
   return `<tr>
-    <td>${_fotoFechamentoHtml(m.foto||'')}</td>
+    <td>${_fotoFechamentoHtml(m.foto||'', m.descricao||m.codigo||'')}</td>
     <td class="mono">${esc(m.data||'')}</td>
     <td>${esc(m._origem||'')}</td>
     <td><span class="badge-${(m.tipo||'').toLowerCase()==='entrada'?'entrada':'saida'}">${esc(m.tipo||'')}</span></td>
@@ -1731,7 +1782,7 @@ function filtrarEstoqueInsumos() {
         const status = i.estoqueAtual <= 0 ? ['zerado','badge-critico'] :
                        i.estoqueAtual <= (i.estoqueMin||0) ? ['crítico','badge-baixo'] : ['ok','badge-ok'];
         return `<tr>
-          <td>${_fotoFechamentoHtml(i.foto||'')}</td>
+          <td>${_fotoFechamentoHtml(i.foto||'', i.descricao||'')}</td>
           <td class="mono">${esc(i.codigo)}</td>
           <td class="desc">${esc(i.descricao)}</td>
           <td style="color:#4a6a6a;font-size:11px">${esc(i.tipo||'')}</td>
@@ -1805,7 +1856,7 @@ function filtrarEstoquePA() {
         const status = i.estoqueAtual <= 0 ? ['zerado','badge-critico'] :
                        i.estoqueAtual <= (i.estoqueMin||0) ? ['crítico','badge-baixo'] : ['ok','badge-ok'];
         return `<tr>
-          <td>${_fotoFechamentoHtml(i.foto||'')}</td>
+          <td>${_fotoFechamentoHtml(i.foto||'', i.descricao||'')}</td>
           <td class="mono">${esc(i.codigo)}</td>
           <td class="desc">${esc(i.descricao)}</td>
           <td style="color:#4a6a6a;font-size:11px">${esc(i.vertical||'')}</td>
@@ -1919,7 +1970,7 @@ async function gerarOPs() {
           <th>OBS</th><th>SILK</th>
         </tr></thead>
         <tbody>${ops.map(o => `<tr>
-          <td>${_fotoFechamentoHtml(o.foto||'')}</td>
+          <td>${_fotoFechamentoHtml(o.foto||'', o.descricao||'')}</td>
           <td class="mono">${esc(o.op||'')}</td>
           <td class="mono">${esc(o.pedido||'')}</td>
           <td class="mono">${esc(o.codigo||'')}</td>
@@ -2004,7 +2055,7 @@ async function gerarABC() {
           ${_thSort('abc','pctAcum','% Acumulado','num')}
         </tr></thead>
         <tbody>${itens.map(i => `<tr>
-          <td>${_fotoFechamentoHtml(i.foto||'')}</td>
+          <td>${_fotoFechamentoHtml(i.foto||'', i.descricao||'')}</td>
           <td class="mono" style="color:#4a6a6a">${i.rank}</td>
           <td><span class="badge-${i.classe.toLowerCase()}">${i.classe}</span></td>
           <td class="mono">${esc(i.codigo)}</td>
@@ -2537,7 +2588,7 @@ function _renderFechamento(linhas) {
           ${_thSort('fechamento','rsTotal','R$ Total','num')}
         </tr></thead>
         <tbody>${linhas.map(l => `<tr>
-          <td>${_fotoFechamentoHtml(l.foto)}</td>
+          <td>${_fotoFechamentoHtml(l.foto, l.descricao||'')}</td>
           <td class="mono">${esc(l.codigo)}</td>
           <td class="desc">${esc(l.descricao)}</td>
           <td style="font-size:11px;color:#4a6a6a">${esc(l.um)}</td>
@@ -2570,7 +2621,7 @@ function _renderFechamento(linhas) {
           ${_thSort('fechamento','precoTotal','Preço Total','num')}
         </tr></thead>
         <tbody>${linhas.map(l => `<tr>
-          <td>${_fotoFechamentoHtml(l.foto)}</td>
+          <td>${_fotoFechamentoHtml(l.foto, l.descricao||'')}</td>
           <td class="mono">${esc(l.codigo)}</td>
           <td class="desc">${esc(l.descricao)}</td>
           <td style="font-size:11px;color:#4a6a6a">${esc(l.projeto)}</td>
@@ -2601,10 +2652,12 @@ function _normalizarFotoUrlFechamento(url) {
   return `https://drive.google.com/thumbnail?sz=w120&id=${id}`;
 }
 
-function _fotoFechamentoHtml(fotoRef) {
+function _fotoFechamentoHtml(fotoRef, desc) {
   const url = _normalizarFotoUrlFechamento(fotoRef);
   if (!url) return `<div style="width:32px;height:32px;border-radius:6px;background:#f0f4f5;display:flex;align-items:center;justify-content:center;font-size:14px;color:#c8d8da">📦</div>`;
-  return `<img src="${esc(url)}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;background:#f0f4f5" onerror="this.style.display='none'">`;
+  const urlGrande = url.replace(/sz=w\d+/, 'sz=w800');
+  const dataDesc  = desc ? ` data-desc="${esc(desc)}"` : '';
+  return `<img src="${esc(url)}" class="foto-zoom" style="width:32px;height:32px;border-radius:6px;object-fit:cover;background:#f0f4f5" data-src="${esc(urlGrande)}"${dataDesc} onclick="abrirLightboxEl(this)" onerror="this.style.display='none'" title="Clique para ampliar">`;
 }
 
 async function arquivarFechamento() {
@@ -3365,7 +3418,7 @@ function _montarPainelProdutos(produtos) {
                  (p.Grupo?`<span class="tag-grupo">${esc(p.Grupo)}</span>`:'') +
                  (p.Familia?`<span class="tag-familia">${esc(p.Familia)}</span>`:'');
     const fotoHtml = p.Foto
-      ? `<img class="foto-produto-vendas" src="${esc(p.Foto)}" onerror="this.outerHTML='<div class=&quot;foto-placeholder-vendas&quot;>📷</div>'">`
+      ? `<img class="foto-produto-vendas foto-zoom" src="${esc(p.Foto)}" data-src="${esc(p.Foto)}" data-desc="${esc(p.Descricao||'')}" onclick="abrirLightboxEl(this)" onerror="this.outerHTML='<div class=&quot;foto-placeholder-vendas&quot;>📷</div>'" title="Clique para ampliar">`
       : '<div class="foto-placeholder-vendas">📷</div>';
     let desc = p.Descricao || '';
     if (desc.length > 70) desc = desc.substring(0,70)+'...';
