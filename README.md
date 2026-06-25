@@ -62,6 +62,13 @@ Painel acessível pelo card "Manutenção de Usuários". Permite:
 - **Desativar** usuário (marca `Ativo = NÃO` — não apaga da planilha)
 - Seleção de relatórios por checkboxes, com botões "Todos" e "Nenhum"
 
+### Lightbox de fotos
+Clique em qualquer thumbnail de produto para abrir a foto ampliada (800px) em um modal com fundo escuro.
+- Spinner de carregamento enquanto a imagem carrega
+- Legenda com o nome do produto
+- Fechar com clique fora, botão ✕ ou tecla **Escape**
+- Disponível em: Movimentos, Estoque Insumos, Estoque PA, OPs, Curva ABC, Extrato, Fechamento M5/M3 e Dashboard de Vendas
+
 ---
 
 ## Arquitetura
