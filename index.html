@@ -97,6 +97,31 @@
     .cards-table .btn-del{width:26px;height:26px;padding:0;background:#fff0f0;border:1.5px solid #fca5a5;border-radius:4px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;color:#dc2626}
     .cards-table .btn-del:hover{background:#dc2626;color:#fff}
 
+    /* ── Manutenção de Usuários ── */
+    .usr-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+    .usr-table-wrap{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);overflow:auto}
+    .usr-table{width:100%;border-collapse:collapse;font-size:13px}
+    .usr-table th{background:#f5f8f9;color:var(--text-label);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1.5px solid var(--border);white-space:nowrap;text-align:left}
+    .usr-table td{padding:10px 14px;border-bottom:1px solid #eef2f3;vertical-align:middle}
+    .usr-table tr:last-child td{border-bottom:none}
+    .usr-table tr:hover td{background:#f9fbfb}
+    .usr-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px}
+    .usr-badge.ativo{background:#dcfce7;color:#16a34a}
+    .usr-badge.inativo{background:#fee2e2;color:#dc2626}
+    .usr-badge.admin{background:rgba(124,58,237,.15);color:#6d28d9}
+    /* Modal de usuário */
+    .modal-usr-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;align-items:center;justify-content:center;padding:24px 16px}
+    .modal-usr-overlay.visible{display:flex}
+    .modal-usr-box{background:#fff;border-radius:var(--radius);width:100%;max-width:460px;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+    .modal-usr-head{display:flex;align-items:center;padding:16px 20px;border-bottom:1.5px solid var(--border);gap:10px}
+    .modal-usr-head h2{flex:1;font-size:15px;font-weight:700;color:var(--text)}
+    .modal-usr-body{padding:20px;display:flex;flex-direction:column;gap:14px}
+    .modal-usr-foot{padding:14px 20px;border-top:1.5px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+    .usr-field label{display:block;font-size:11px;font-weight:700;color:var(--text-label);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+    .usr-field input,.usr-field select{width:100%;height:40px;padding:0 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:14px;background:#fff}
+    .usr-field input:focus,.usr-field select:focus{outline:none;border-color:var(--accent)}
+    .usr-field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
     /* ── Dashboard de Vendas ── */
     .vendas-sub{margin-top:4px}
     .vendas-cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
@@ -346,6 +371,88 @@
         <div class="modal-cards-foot">
           <button class="btn btn-secondary btn-sm" onclick="resetarCardsPadrao()">↺ Restaurar padrão</button>
           <button class="btn btn-primary btn-sm" onclick="salvarPersonalizarCards()">✔ Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MANUTENÇÃO DE USUÁRIOS ══ -->
+    <div id="rel-usuarios" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">👤 Manutenção de Usuários</div>
+        <div class="rel-actions"></div>
+      </div>
+      <div class="usr-toolbar">
+        <button class="btn btn-primary btn-sm" onclick="abrirModalUsuario(null)">+ Novo Usuário</button>
+        <span id="usr-count" style="font-size:12px;color:var(--text-muted)"></span>
+      </div>
+      <div class="usr-table-wrap">
+        <table class="usr-table">
+          <thead>
+            <tr>
+              <th>Usuário</th>
+              <th>Nome</th>
+              <th>Perfil</th>
+              <th>Acesso</th>
+              <th>Status</th>
+              <th style="width:110px">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="usr-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal de Usuário (criar/editar) -->
+    <div id="modal-usuario" class="modal-usr-overlay" onclick="if(event.target===this)fecharModalUsuario()">
+      <div class="modal-usr-box">
+        <div class="modal-usr-head">
+          <h2 id="modal-usr-titulo">Novo Usuário</h2>
+          <button class="btn btn-secondary btn-sm" onclick="fecharModalUsuario()">✕</button>
+        </div>
+        <div class="modal-usr-body">
+          <input type="hidden" id="usr-edit-id">
+          <div class="usr-field">
+            <label>Login (usuário)</label>
+            <input type="text" id="usr-edit-login" placeholder="ex: joao.silva" autocomplete="off">
+          </div>
+          <div class="usr-field">
+            <label>Nome completo</label>
+            <input type="text" id="usr-edit-nome" placeholder="ex: João Silva">
+          </div>
+          <div class="usr-field-row">
+            <div class="usr-field">
+              <label>Perfil</label>
+              <select id="usr-edit-perfil">
+                <option value="Operador">Operador</option>
+                <option value="Gerente">Gerente</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+            </div>
+            <div class="usr-field">
+              <label>Acesso ao App</label>
+              <select id="usr-edit-acesso">
+                <option value="RELATORIOS">Relatórios</option>
+                <option value="AMBOS">Ambos</option>
+                <option value="ESTOQUE">Estoque</option>
+              </select>
+            </div>
+          </div>
+          <div class="usr-field" id="usr-campo-senha">
+            <label id="usr-senha-label">Senha</label>
+            <input type="password" id="usr-edit-senha" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
+          </div>
+          <div class="usr-field" id="usr-campo-ativo" style="display:none">
+            <label>Status</label>
+            <select id="usr-edit-ativo">
+              <option value="SIM">Ativo</option>
+              <option value="NÃO">Inativo</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-usr-foot">
+          <button class="btn btn-secondary btn-sm" onclick="fecharModalUsuario()">Cancelar</button>
+          <button class="btn btn-primary btn-sm" id="btn-salvar-usuario" onclick="salvarUsuario()">Salvar</button>
         </div>
       </div>
     </div>
@@ -1100,6 +1207,7 @@ const CARDS_PADRAO = [
   { id:'fechamento',      icon:'📅', title:'Fechamento Mensal M5/M3',     desc:'Calcula o fechamento mensal de Insumos (M5) e Produtos Acabados (M3) com saldo inicial, entradas, saídas e arquiva no histórico.',badge:'Fechamento',       cor:'#7c3aed', action:"abrirRelatorio('fechamento')" },
   { id:'vendas',          icon:'💹', title:'Dashboard de Vendas',         desc:'Faturamento por vertical, ranking de vendedores e produtos, comparação anual e evolução mensal — dados da planilha de vendas.',  badge:'Vendas',           cor:'#0d9488', action:"abrirRelatorio('vendas'); carregarVendas();" },
   { id:'guia',            icon:'📄', title:'Guia de Documentação',        desc:'Abra um modal interno para carregar o PDF e consultar o guia dentro do app.',                                                    badge:'Docs',             cor:'#0ea5e9', action:"abrirModalGuia()" },
+  { id:'usuarios',        icon:'👤', title:'Manutenção de Usuários',      desc:'Criar, editar, trocar senha e desativar usuários do sistema.',                                                                    badge:'Admin',            cor:'#7c3aed', action:"abrirRelatorio('usuarios'); carregarUsuarios();", adminOnly: true },
 ];
 
 function _hexToRgb(hex) {
@@ -1112,9 +1220,12 @@ function carregarCards() {
   catch { return CARDS_PADRAO; }
 }
 
+function isAdmin() { return USUARIO?.perfil?.trim().toUpperCase() === 'ADMIN'; }
+
 function renderMenu() {
-  const cards = carregarCards();
-  const grid  = document.getElementById('relatorios-grid-render');
+  const ehAdmin = isAdmin();
+  const cards   = carregarCards().filter(c => !c.adminOnly || ehAdmin);
+  const grid    = document.getElementById('relatorios-grid-render');
   grid.innerHTML = cards.map(c => {
     let estilo = '', badgeEstilo = '';
     if (c.cor) {
@@ -1129,6 +1240,8 @@ function renderMenu() {
       <div><span class="rel-card-badge"${badgeEstilo ? ` style="${badgeEstilo}"` : ''}>${c.badge}</span></div>
     </div>`;
   }).join('');
+  const btnPersonalizar = document.querySelector('#menu-relatorios .btn-secondary');
+  if (btnPersonalizar) btnPersonalizar.style.display = ehAdmin ? '' : 'none';
 }
 
 // ── Modal Personalizar ──
@@ -1204,6 +1317,103 @@ function resetarCardsPadrao() {
   renderMenu();
 }
 
+// ══════════════════════════════════════════════════════
+//  MANUTENÇÃO DE USUÁRIOS
+// ══════════════════════════════════════════════════════
+async function carregarUsuarios() {
+  const tbody = document.getElementById('usr-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted)">Carregando...</td></tr>';
+  try {
+    const res = await api('listarUsuarios', { solicitanteId: USUARIO.id });
+    if (!res?.ok) { tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;color:var(--danger)">${res?.mensagem||'Erro ao carregar usuários.'}</td></tr>`; return; }
+    const lista = res.usuarios || [];
+    document.getElementById('usr-count').textContent = `${lista.length} usuário(s)`;
+    tbody.innerHTML = lista.map(u => `
+      <tr>
+        <td style="font-weight:600">${u.Usuario}</td>
+        <td>${u.Nome}</td>
+        <td><span class="usr-badge${u.Perfil==='ADMIN'?' admin':''}">${u.Perfil||'—'}</span></td>
+        <td style="font-size:12px;color:var(--text-muted)">${u.ACESSO_APPS||'—'}</td>
+        <td><span class="usr-badge ${u.Ativo==='SIM'?'ativo':'inativo'}">${u.Ativo==='SIM'?'Ativo':'Inativo'}</span></td>
+        <td>
+          <button class="btn btn-secondary btn-sm" style="padding:0 8px;height:28px;font-size:11px" onclick="abrirModalUsuario('${u.ID}')">✏ Editar</button>
+          <button class="btn btn-sm" style="padding:0 8px;height:28px;font-size:11px;background:#fff0f0;color:#dc2626;border:1.5px solid #fca5a5;${u.ID===USUARIO.id?'opacity:.4;cursor:not-allowed':''}" onclick="${u.ID===USUARIO.id?'':`desativarUsuario('${u.ID}')`}" title="${u.ID===USUARIO.id?'Não pode desativar o próprio usuário':'Desativar'}">⊘</button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted)">Nenhum usuário encontrado.</td></tr>';
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;color:var(--danger)">Erro: ${e.message}</td></tr>`; }
+}
+
+let _usrEditando = null;
+function abrirModalUsuario(id) {
+  _usrEditando = id;
+  document.getElementById('usr-edit-id').value      = id || '';
+  document.getElementById('usr-edit-login').value   = '';
+  document.getElementById('usr-edit-nome').value    = '';
+  document.getElementById('usr-edit-senha').value   = '';
+  document.getElementById('usr-edit-perfil').value  = 'Operador';
+  document.getElementById('usr-edit-acesso').value  = 'RELATORIOS';
+  document.getElementById('usr-edit-ativo').value   = 'SIM';
+  document.getElementById('usr-campo-ativo').style.display  = id ? 'block' : 'none';
+  document.getElementById('usr-edit-login').disabled        = !!id;
+  document.getElementById('usr-senha-label').textContent    = id ? 'Nova Senha (deixe em branco para não alterar)' : 'Senha';
+  document.getElementById('modal-usr-titulo').textContent   = id ? 'Editar Usuário' : 'Novo Usuário';
+  if (id) {
+    api('listarUsuarios', { solicitanteId: USUARIO.id }).then(res => {
+      const u = (res?.usuarios||[]).find(x => x.ID === id);
+      if (!u) return;
+      document.getElementById('usr-edit-login').value   = u.Usuario;
+      document.getElementById('usr-edit-nome').value    = u.Nome;
+      document.getElementById('usr-edit-perfil').value  = u.Perfil;
+      document.getElementById('usr-edit-acesso').value  = u.ACESSO_APPS;
+      document.getElementById('usr-edit-ativo').value   = u.Ativo;
+    });
+  }
+  document.getElementById('modal-usuario').classList.add('visible');
+}
+
+function fecharModalUsuario() {
+  document.getElementById('modal-usuario').classList.remove('visible');
+}
+
+async function salvarUsuario() {
+  const btn  = document.getElementById('btn-salvar-usuario');
+  const id   = document.getElementById('usr-edit-id').value.trim();
+  const nome = document.getElementById('usr-edit-nome').value.trim();
+  const login= document.getElementById('usr-edit-login').value.trim();
+  const senha= document.getElementById('usr-edit-senha').value.trim();
+  const perf = document.getElementById('usr-edit-perfil').value;
+  const aces = document.getElementById('usr-edit-acesso').value;
+  const ativ = document.getElementById('usr-edit-ativo').value;
+  if (!nome) { alert('Preencha o Nome.'); return; }
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    let res;
+    if (!id) {
+      if (!login) { alert('Preencha o Login.'); return; }
+      if (!senha || senha.length < 4) { alert('Senha deve ter no mínimo 4 caracteres.'); return; }
+      res = await api('criarUsuario', { solicitanteId: USUARIO.id, novoUsuario: { usuario: login, senha, nome, perfil: perf, acesso: aces } });
+    } else {
+      res = await api('atualizarUsuario', { solicitanteId: USUARIO.id, usuarioId: id, campos: { nome, perfil: perf, acesso: aces, ativo: ativ } });
+      if (res?.ok && senha.length >= 4) {
+        await api('trocarSenha', { solicitanteId: USUARIO.id, usuarioId: id, novaSenha: senha });
+      }
+    }
+    if (!res?.ok) { alert(res?.mensagem || 'Erro ao salvar.'); return; }
+    fecharModalUsuario();
+    carregarUsuarios();
+  } catch(e) { alert('Erro: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+}
+
+async function desativarUsuario(id) {
+  if (!confirm('Desativar este usuário? Ele não conseguirá mais fazer login.')) return;
+  try {
+    const res = await api('desativarUsuario', { solicitanteId: USUARIO.id, usuarioId: id });
+    if (!res?.ok) { alert(res?.mensagem || 'Erro ao desativar.'); return; }
+    carregarUsuarios();
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
 function entrarNoApp() {
   document.getElementById('page-login').style.display = 'none';
   document.getElementById('app').classList.add('visible');
@@ -1239,6 +1449,7 @@ function abrirRelatorio(id) {
     'fechamento':       '📅 Fechamento Mensal',
     'vendas':           '💹 Dashboard de Vendas',
     'cenario':          '📊 Acompanhamento Fabril',
+    'usuarios':         '👤 Manutenção de Usuários',
   }[id] || 'Relatórios';
 }
 
