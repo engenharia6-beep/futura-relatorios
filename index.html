@@ -981,21 +981,31 @@
         </div>
       </div>
 
-      <!-- Pedidos Faturáveis + Importação -->
+      <!-- Linha 1: Faturável/Bloqueio + Não Faturáveis lado a lado -->
       <div style="display:flex;gap:14px;flex-wrap:wrap">
         <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
           <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">
-            Pedidos — <span style="color:#16a34a">■ Faturável</span> / <span style="color:#ea580c">■ Não Faturável</span>
+            Pedidos — <span style="color:#16a34a">■ Faturável</span> / <span style="color:#ea580c">■ Bloqueio Temporário</span>
           </div>
           <div id="cenario-pedidos" style="overflow-x:auto">
             <div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Clique em Atualizar</div></div>
           </div>
         </div>
         <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
-          <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Pedidos Aguardando Importação</div>
-          <div id="cenario-importacao" style="overflow-x:auto">
-            <div class="empty"><div class="empty-icon">🚢</div><div class="empty-text">Clique em Atualizar</div></div>
+          <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">
+            Pedidos Não Faturáveis
           </div>
+          <div id="cenario-nao-faturavel" style="overflow-x:auto">
+            <div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Clique em Atualizar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linha 2: Aguardando Importação — largura total -->
+      <div style="background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">
+        <div style="padding:8px 14px;font-weight:700;font-size:11px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:.5px">Pedidos Aguardando Importação</div>
+        <div id="cenario-importacao" style="overflow-x:auto">
+          <div class="empty"><div class="empty-icon">🚢</div><div class="empty-text">Clique em Atualizar</div></div>
         </div>
       </div>
     </div>
@@ -2316,7 +2326,7 @@ let _cenarioGraficoDiario = null;
 
 async function gerarCenario() {
   const load = id => document.getElementById(id).innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Carregando...</div></div>';
-  ['cenario-tabela','cenario-pedidos-totais','cenario-pedidos','cenario-importacao'].forEach(load);
+  ['cenario-tabela','cenario-pedidos-totais','cenario-pedidos','cenario-nao-faturavel','cenario-importacao'].forEach(load);
 
   try {
     const res = await api('getCenarioMomento');
@@ -2328,11 +2338,12 @@ async function gerarCenario() {
     _renderCenarioGraficoAnual(res.anual);
     _renderCenarioGraficoDiario(res.diario);
     _renderCenarioPedidos(res.pedidos);
+    _renderCenarioNaoFaturavel(res.naoFaturavel);
     _renderCenarioImportacao(res.importacao);
     document.getElementById('cenario-data').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
   } catch(e) {
     const err = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
-    ['cenario-tabela','cenario-pedidos-totais','cenario-pedidos','cenario-importacao'].forEach(id => document.getElementById(id).innerHTML = err);
+    ['cenario-tabela','cenario-pedidos-totais','cenario-pedidos','cenario-nao-faturavel','cenario-importacao'].forEach(id => document.getElementById(id).innerHTML = err);
   }
 }
 
@@ -2575,29 +2586,55 @@ function _renderCenarioPedidos(pedidos) {
   document.getElementById('cenario-pedidos').innerHTML = html;
 }
 
-function _renderCenarioImportacao(importacao) {
-  if (!importacao?.length) {
-    document.getElementById('cenario-importacao').innerHTML = '<div class="empty"><div class="empty-icon">🚢</div><div class="empty-text">Nenhum pedido aguardando.</div></div>';
-    return;
-  }
+function _renderCenarioNaoFaturavel(rows) {
+  const el = document.getElementById('cenario-nao-faturavel');
+  if (!rows?.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum pedido.</div></div>'; return; }
+  const th = 'padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;';
   let html = `<table style="width:100%;border-collapse:collapse;font-size:11px">
     <thead><tr style="background:#f9fafb">
-      <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Pedido</th>
-      <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Cliente</th>
-      <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Valor</th>
-      <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb">Status</th>
+      <th style="${th}">Pedido</th>
+      <th style="${th}">Cliente</th>
+      <th style="${th}text-align:right">Valor</th>
+      <th style="${th}">Motivos</th>
     </tr></thead><tbody>`;
-  for (const p of importacao) {
-    const status = p.status ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#e0e7ff;color:#3730a3;font-weight:600">${esc(p.status)}</span>` : '';
-    html += `<tr style="border-bottom:1px solid #f3f4f6">
+  for (const p of rows) {
+    html += `<tr style="background:#fef9c3;border-bottom:1px solid rgba(0,0,0,.05)">
       <td style="padding:5px 8px;font-family:monospace;font-weight:700">${esc(p.pedido)}</td>
       <td style="padding:5px 8px">${esc(p.cliente)}</td>
       <td style="padding:5px 8px;text-align:right;font-weight:600">${fmtNum(p.valor)}</td>
+      <td style="padding:5px 8px;color:#92400e;font-weight:600">${esc(p.motivos)}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function _renderCenarioImportacao(importacao) {
+  const el = document.getElementById('cenario-importacao');
+  if (!importacao?.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🚢</div><div class="empty-text">Nenhum pedido aguardando.</div></div>'; return; }
+  const th = 'padding:6px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;white-space:nowrap;';
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead><tr style="background:#f9fafb">
+      <th style="${th}">Pedido</th>
+      <th style="${th}">Cliente</th>
+      <th style="${th}">Produto</th>
+      <th style="${th}text-align:right">Qtde</th>
+      <th style="${th}text-align:right">Valor</th>
+      <th style="${th}min-width:220px">Status / Insumos</th>
+    </tr></thead><tbody>`;
+  for (const p of importacao) {
+    const status = p.status ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#e0e7ff;color:#3730a3;font-weight:600;word-break:break-word">${esc(p.status)}</span>` : '';
+    html += `<tr style="border-bottom:1px solid #f3f4f6">
+      <td style="padding:5px 8px;font-family:monospace;font-weight:700;white-space:nowrap">${esc(p.pedido)}</td>
+      <td style="padding:5px 8px">${esc(p.cliente)}</td>
+      <td style="padding:5px 8px;font-family:monospace">${esc(p.produto)}</td>
+      <td style="padding:5px 8px;text-align:right">${p.qtde || ''}</td>
+      <td style="padding:5px 8px;text-align:right;font-weight:600;white-space:nowrap">${fmtNum(p.valor)}</td>
       <td style="padding:5px 8px">${status}</td>
     </tr>`;
   }
   html += '</tbody></table>';
-  document.getElementById('cenario-importacao').innerHTML = html;
+  el.innerHTML = html;
 }
 
 async function carregarVendas() {
