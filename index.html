@@ -121,6 +121,12 @@
     .usr-field input,.usr-field select{width:100%;height:40px;padding:0 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:14px;background:#fff}
     .usr-field input:focus,.usr-field select:focus{outline:none;border-color:var(--accent)}
     .usr-field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .usr-relatorios-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:6px}
+    .usr-relatorios-grid label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;padding:4px 6px;border-radius:5px}
+    .usr-relatorios-grid label:hover{background:#f0f4f5}
+    .usr-relatorios-grid input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+    .usr-rel-todos{font-size:11px;color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:4px}
+    .usr-rel-aviso{font-size:11px;color:var(--text-muted);font-style:italic;margin-top:4px}
 
     /* ── Dashboard de Vendas ── */
     .vendas-sub{margin-top:4px}
@@ -448,6 +454,15 @@
               <option value="SIM">Ativo</option>
               <option value="NÃO">Inativo</option>
             </select>
+          </div>
+          <div class="usr-field">
+            <label>Relatórios liberados
+              <span class="usr-rel-todos" onclick="_toggleTodosRel(true)">Todos</span>
+              <span style="color:var(--border)"> / </span>
+              <span class="usr-rel-todos" onclick="_toggleTodosRel(false)">Nenhum</span>
+            </label>
+            <div class="usr-rel-aviso">Deixe todos desmarcados para liberar acesso total.</div>
+            <div class="usr-relatorios-grid" id="usr-rel-checks"></div>
           </div>
         </div>
         <div class="modal-usr-foot">
@@ -1222,9 +1237,21 @@ function carregarCards() {
 
 function isAdmin() { return USUARIO?.perfil?.trim().toUpperCase() === 'ADMIN'; }
 
+function _relatoriosPermitidos() {
+  if (isAdmin()) return null; // null = tudo liberado
+  const raw = (USUARIO?.relatorios || '').trim();
+  if (!raw) return null; // vazio = tudo liberado
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
 function renderMenu() {
-  const ehAdmin = isAdmin();
-  const cards   = carregarCards().filter(c => !c.adminOnly || ehAdmin);
+  const ehAdmin   = isAdmin();
+  const permitidos = _relatoriosPermitidos();
+  const cards = carregarCards().filter(c => {
+    if (c.adminOnly) return ehAdmin;
+    if (!permitidos)  return true;
+    return permitidos.includes(c.id);
+  });
   const grid    = document.getElementById('relatorios-grid-render');
   grid.innerHTML = cards.map(c => {
     let estilo = '', badgeEstilo = '';
@@ -1343,6 +1370,24 @@ async function carregarUsuarios() {
   } catch(e) { tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;color:var(--danger)">Erro: ${e.message}</td></tr>`; }
 }
 
+function _renderRelChecks(selecionados) {
+  const checks = document.getElementById('usr-rel-checks');
+  const cards  = CARDS_PADRAO.filter(c => !c.adminOnly);
+  const sel    = selecionados ? selecionados.split(',').map(s => s.trim()).filter(Boolean) : [];
+  checks.innerHTML = cards.map(c =>
+    `<label><input type="checkbox" value="${c.id}" ${sel.includes(c.id)?'checked':''}> ${c.icon} ${c.title}</label>`
+  ).join('');
+}
+
+function _toggleTodosRel(marcar) {
+  document.querySelectorAll('#usr-rel-checks input[type=checkbox]').forEach(cb => cb.checked = marcar);
+}
+
+function _lerRelSelecionados() {
+  return Array.from(document.querySelectorAll('#usr-rel-checks input[type=checkbox]:checked'))
+    .map(cb => cb.value).join(',');
+}
+
 let _usrEditando = null;
 function abrirModalUsuario(id) {
   _usrEditando = id;
@@ -1357,6 +1402,7 @@ function abrirModalUsuario(id) {
   document.getElementById('usr-edit-login').disabled        = !!id;
   document.getElementById('usr-senha-label').textContent    = id ? 'Nova Senha (deixe em branco para não alterar)' : 'Senha';
   document.getElementById('modal-usr-titulo').textContent   = id ? 'Editar Usuário' : 'Novo Usuário';
+  _renderRelChecks('');
   if (id) {
     api('listarUsuarios', { solicitanteId: USUARIO.id }).then(res => {
       const u = (res?.usuarios||[]).find(x => x.ID === id);
@@ -1366,6 +1412,7 @@ function abrirModalUsuario(id) {
       document.getElementById('usr-edit-perfil').value  = u.Perfil;
       document.getElementById('usr-edit-acesso').value  = u.ACESSO_APPS;
       document.getElementById('usr-edit-ativo').value   = u.Ativo;
+      _renderRelChecks(u.RELATORIOS || '');
     });
   }
   document.getElementById('modal-usuario').classList.add('visible');
@@ -1391,9 +1438,11 @@ async function salvarUsuario() {
     if (!id) {
       if (!login) { alert('Preencha o Login.'); return; }
       if (!senha || senha.length < 4) { alert('Senha deve ter no mínimo 4 caracteres.'); return; }
-      res = await api('criarUsuario', { solicitanteId: USUARIO.id, novoUsuario: { usuario: login, senha, nome, perfil: perf, acesso: aces } });
+      const rels = _lerRelSelecionados();
+      res = await api('criarUsuario', { solicitanteId: USUARIO.id, novoUsuario: { usuario: login, senha, nome, perfil: perf, acesso: aces, relatorios: rels } });
     } else {
-      res = await api('atualizarUsuario', { solicitanteId: USUARIO.id, usuarioId: id, campos: { nome, perfil: perf, acesso: aces, ativo: ativ } });
+      const rels = _lerRelSelecionados();
+      res = await api('atualizarUsuario', { solicitanteId: USUARIO.id, usuarioId: id, campos: { nome, perfil: perf, acesso: aces, ativo: ativ, relatorios: rels } });
       if (res?.ok && senha.length >= 4) {
         await api('trocarSenha', { solicitanteId: USUARIO.id, usuarioId: id, novaSenha: senha });
       }
