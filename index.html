@@ -158,6 +158,17 @@
     .vendas-painel-layout{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
     .vendas-painel-tabela{flex:1.4;min-width:320px}
     .vendas-painel-grafico{flex:1;min-width:280px}
+
+    /* ── Vendas por Segmento — tabela pivô ── */
+    .vseg-table{width:100%;border-collapse:collapse;font-size:12px}
+    .vseg-table th,.vseg-table td{border:1px solid var(--border);padding:6px 10px;text-align:right;white-space:nowrap}
+    .vseg-table th{background:rgba(22,163,74,.12);color:#15803d;font-weight:700;text-align:center}
+    .vseg-table th.vseg-col-label{text-align:left}
+    .vseg-table td.vseg-col-label{text-align:left;font-weight:600}
+    .vseg-table th.vseg-th-total,.vseg-table td.vseg-td-total{background:rgba(22,163,74,.08)}
+    .vseg-table tr.vseg-linha-local td{background:#fff;font-weight:700;color:var(--accent)}
+    .vseg-table tr.vseg-subtotal td{background:#fde047;font-weight:700}
+    .vseg-table tr.vseg-total-geral td{background:#f0f6f6;font-weight:700}
     .badge-vertical{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
     .badge-vertical.clear{background:#e8f0fe;color:#1a73e8}
     .badge-vertical.vtv{background:#fff8e1;color:#ca8a04}
@@ -1019,6 +1030,32 @@
       </div>
     </div>
 
+    <!-- ══ RELATÓRIO: VENDAS POR SEGMENTO/LOCALIDADE ══ -->
+    <div id="rel-vendas-segmento" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">📈 Vendas por Segmento</div>
+        <div class="rel-actions">
+          <button class="btn btn-secondary btn-sm" onclick="carregarVendasSegmento()">🔄 Atualizar</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+
+      <div id="vseg-loading" class="empty"><div class="empty-icon">📈</div><div class="empty-text">Carregando dados de vendas...</div></div>
+
+      <div id="vseg-content" style="display:none">
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Vendas por Segmento — 2026</div>
+          <div class="table-wrap"><table id="vseg-tabela-grupo" class="vseg-table"></table></div>
+        </div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Vendas por Localidade e Segmento — 2026</div>
+          <div class="table-wrap"><table id="vseg-tabela-local" class="vseg-table"></table></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ RELATÓRIO: CENÁRIO DE MOMENTO ══ -->
     <div id="rel-cenario" class="rel-panel">
       <div class="rel-header">
@@ -1232,6 +1269,7 @@ const CARDS_PADRAO = [
   { id:'compras',         icon:'🛒', title:'Lista de Compras',            desc:'Gera lista de compras por itens críticos (zerado/mínimo/ponto de pedido) ou baseada na estrutura de PAs a produzir.',            badge:'Compras',          cor:'#d97706', action:"abrirRelatorio('compras')" },
   { id:'fechamento',      icon:'📅', title:'Fechamento Mensal M5/M3',     desc:'Consulta o fechamento mensal já registrado no histórico de Insumos (M5) e Produtos Acabados (M3), com saldo inicial, entradas, saídas e saldo final.',badge:'Fechamento',       cor:'#7c3aed', action:"abrirRelatorio('fechamento')" },
   { id:'vendas',          icon:'💹', title:'Dashboard de Vendas',         desc:'Faturamento por vertical, ranking de vendedores e produtos, comparação anual e evolução mensal — dados da planilha de vendas.',  badge:'Vendas',           cor:'#0d9488', action:"abrirRelatorio('vendas'); carregarVendas();" },
+  { id:'vendas-segmento', icon:'📈', title:'Vendas por Segmento',         desc:'Quantidade e faturamento por segmento (Acessórios, Câmera, Gravador, Kit) e por localidade (Municipal/Nacional), mês a mês.',      badge:'Vendas',           cor:'#0d9488', action:"abrirRelatorio('vendas-segmento'); carregarVendasSegmento();" },
   { id:'guia',            icon:'📄', title:'Guia de Documentação',        desc:'Abra um modal interno para carregar o PDF e consultar o guia dentro do app.',                                                    badge:'Docs',             cor:'#0ea5e9', action:"abrirModalGuia()" },
   { id:'usuarios',        icon:'👤', title:'Manutenção de Usuários',      desc:'Criar, editar, trocar senha e desativar usuários do sistema.',                                                                    badge:'Admin',            cor:'#7c3aed', action:"abrirRelatorio('usuarios'); carregarUsuarios();", adminOnly: true },
 ];
@@ -1541,6 +1579,7 @@ function abrirRelatorio(id) {
     'vendas':           '💹 Dashboard de Vendas',
     'cenario':          '📊 Acompanhamento Fabril',
     'usuarios':         '👤 Manutenção de Usuários',
+    'vendas-segmento':  '📈 Vendas por Segmento',
   }[id] || 'Relatórios';
   if (id === 'fechamento') setModoFechamento(_modoFechamento || 'm5');
 }
@@ -3423,6 +3462,109 @@ function _renderGrupoProdutos(produtos) {
     <td>${esc(p.Descricao||'')}</td>
     <td class="num">${fmtBrl(p.FatTotal||0)}</td>
   </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  VENDAS POR SEGMENTO/LOCALIDADE
+// ══════════════════════════════════════════════════════
+function _vsegColspanTotal(meses) { return 2 + meses.length * 2 + 2; }
+
+function _vsegCelulasMeses(meses, porMes) {
+  return meses.map(m => `<td>${fmtNum(porMes[m.num].qtde)}</td><td>${fmtMoeda(porMes[m.num].total)}</td>`).join('');
+}
+
+function _renderVsegGrupo(meses, porGrupo, totalGeral) {
+  const thead = `<thead>
+    <tr>
+      <th class="vseg-col-label" rowspan="2">Grupo</th>
+      ${meses.map(m => `<th colspan="2">${esc(m.label)}</th>`).join('')}
+      <th class="vseg-th-total" colspan="2">Total</th>
+    </tr>
+    <tr>
+      ${meses.map(() => `<th>Qtde</th><th>Total</th>`).join('')}
+      <th class="vseg-th-total">Qtde</th><th class="vseg-th-total">Total</th>
+    </tr>
+  </thead>`;
+
+  const linhas = porGrupo.map(l => `
+    <tr>
+      <td class="vseg-col-label">${esc(l.grupo)}</td>
+      ${_vsegCelulasMeses(meses, l.porMes)}
+      <td class="vseg-td-total">${fmtNum(l.totalQtde)}</td><td class="vseg-td-total">${fmtMoeda(l.totalValor)}</td>
+    </tr>`).join('');
+
+  const totalRow = totalGeral ? `
+    <tr class="vseg-total-geral">
+      <td class="vseg-col-label">Total geral</td>
+      ${_vsegCelulasMeses(meses, totalGeral.porMes)}
+      <td>${fmtNum(totalGeral.totalQtde)}</td><td>${fmtMoeda(totalGeral.totalValor)}</td>
+    </tr>` : '';
+
+  document.getElementById('vseg-tabela-grupo').innerHTML = `${thead}<tbody>${linhas}${totalRow}</tbody>`;
+}
+
+function _renderVsegLocal(meses, porLocalidade, totalGeral) {
+  const thead = `<thead>
+    <tr>
+      <th class="vseg-col-label" rowspan="2">Local</th>
+      <th class="vseg-col-label" rowspan="2">Grupo</th>
+      ${meses.map(m => `<th colspan="2">${esc(m.label)}</th>`).join('')}
+      <th class="vseg-th-total" colspan="2">Totais</th>
+    </tr>
+    <tr>
+      ${meses.map(() => `<th>Qtde</th><th>Total</th>`).join('')}
+      <th class="vseg-th-total">Qtde</th><th class="vseg-th-total">Total</th>
+    </tr>
+  </thead>`;
+
+  let corpo = '';
+  porLocalidade.forEach(loc => {
+    corpo += `<tr class="vseg-linha-local"><td colspan="${_vsegColspanTotal(meses)}">${esc(loc.local)}</td></tr>`;
+    loc.grupos.forEach(l => {
+      corpo += `<tr>
+        <td></td>
+        <td class="vseg-col-label">${esc(l.grupo)}</td>
+        ${_vsegCelulasMeses(meses, l.porMes)}
+        <td class="vseg-td-total">${fmtNum(l.totalQtde)}</td><td class="vseg-td-total">${fmtMoeda(l.totalValor)}</td>
+      </tr>`;
+    });
+    corpo += `<tr class="vseg-subtotal">
+      <td colspan="2">${esc(loc.local)} Total</td>
+      ${_vsegCelulasMeses(meses, loc.subtotal.porMes)}
+      <td>${fmtNum(loc.subtotal.totalQtde)}</td><td>${fmtMoeda(loc.subtotal.totalValor)}</td>
+    </tr>`;
+  });
+
+  const totalRow = totalGeral ? `<tr class="vseg-total-geral">
+    <td colspan="2">Total geral</td>
+    ${_vsegCelulasMeses(meses, totalGeral.porMes)}
+    <td>${fmtNum(totalGeral.totalQtde)}</td><td>${fmtMoeda(totalGeral.totalValor)}</td>
+  </tr>` : '';
+
+  document.getElementById('vseg-tabela-local').innerHTML = `${thead}<tbody>${corpo}${totalRow}</tbody>`;
+}
+
+async function carregarVendasSegmento() {
+  const loadingEl = document.getElementById('vseg-loading');
+  const contentEl = document.getElementById('vseg-content');
+  loadingEl.style.display = 'block';
+  loadingEl.innerHTML = '<div class="empty-icon">📈</div><div class="empty-text">Carregando dados de vendas...</div>';
+  contentEl.style.display = 'none';
+
+  try {
+    const res = await api('getVendasSegmento', {});
+    if (!res?.ok) {
+      loadingEl.innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-text">${esc(res?.mensagem || 'Erro ao carregar dados.')}</div>`;
+      return;
+    }
+    const meses = res.meses || [];
+    _renderVsegGrupo(meses, res.porGrupo || [], res.totalGeral);
+    _renderVsegLocal(meses, res.porLocalidade || [], res.totalGeral);
+    loadingEl.style.display = 'none';
+    contentEl.style.display = 'block';
+  } catch(e) {
+    loadingEl.innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div>`;
+  }
 }
 
 // ══════════════════════════════════════════════════════
