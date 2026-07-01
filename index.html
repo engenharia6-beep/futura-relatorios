@@ -893,33 +893,22 @@
       <div class="filtros-bar">
         <div class="filtro-group">
           <label>Mês de referência</label>
-          <input type="month" id="fech-mes">
+          <select id="fech-mes" onchange="calcularFechamento()">
+            <option value="">Carregando meses...</option>
+          </select>
         </div>
-        <div class="filtro-group" id="fech-taxa-group">
-          <label>Taxa do dólar (R$)</label>
-          <input type="number" id="fech-taxa" step="0.0001" placeholder="Ex: 4.99">
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="calcularFechamento()" style="margin-top:20px">🔍 Calcular</button>
       </div>
 
       <div id="fech-info-mes" style="display:none;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--text-muted)"></div>
 
       <div class="table-wrap">
         <div class="table-info">
-          <span id="fech-count">Selecione o mês e clique em Calcular</span>
+          <span id="fech-count">Selecione o mês de referência</span>
           <span id="fech-total" style="font-weight:700;color:#6d28d9"></span>
         </div>
         <div id="fech-table-body">
-          <div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Selecione o mês de referência e clique em Calcular</div></div>
+          <div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Selecione o mês de referência</div></div>
         </div>
-      </div>
-
-      <div id="fech-confirmar-bar" style="display:none;background:#fff;border:1.5px solid rgba(124,58,237,.3);border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1;font-size:13px;color:var(--text-muted)">
-          Revise os valores acima com atenção. Ao confirmar, estas linhas serão gravadas permanentemente no histórico
-          (<strong id="fech-aba-destino">M5_Historico</strong>), substituindo qualquer fechamento anterior do mesmo mês.
-        </div>
-        <button class="btn btn-sm" style="background:#6d28d9;color:#fff" onclick="arquivarFechamento()">✔ Confirmar e Arquivar</button>
       </div>
     </div>
 
@@ -1239,7 +1228,7 @@ const CARDS_PADRAO = [
   { id:'abc',             icon:'📊', title:'Curva ABC',                   desc:'Produtos classificados por volume de movimentação no período. Identifica os itens mais críticos.',                                badge:'Análise',          cor:'',        action:"abrirRelatorio('abc')" },
   { id:'extrato',         icon:'🔍', title:'Extrato de Produto',          desc:'Histórico completo de um produto específico com saldo progressivo a cada movimento.',                                            badge:'Insumo ou PA',     cor:'',        action:"abrirRelatorio('extrato')" },
   { id:'compras',         icon:'🛒', title:'Lista de Compras',            desc:'Gera lista de compras por itens críticos (zerado/mínimo/ponto de pedido) ou baseada na estrutura de PAs a produzir.',            badge:'Compras',          cor:'#d97706', action:"abrirRelatorio('compras')" },
-  { id:'fechamento',      icon:'📅', title:'Fechamento Mensal M5/M3',     desc:'Calcula o fechamento mensal de Insumos (M5) e Produtos Acabados (M3) com saldo inicial, entradas, saídas e arquiva no histórico.',badge:'Fechamento',       cor:'#7c3aed', action:"abrirRelatorio('fechamento')" },
+  { id:'fechamento',      icon:'📅', title:'Fechamento Mensal M5/M3',     desc:'Consulta o fechamento mensal já registrado no histórico de Insumos (M5) e Produtos Acabados (M3), com saldo inicial, entradas, saídas e saldo final.',badge:'Fechamento',       cor:'#7c3aed', action:"abrirRelatorio('fechamento')" },
   { id:'vendas',          icon:'💹', title:'Dashboard de Vendas',         desc:'Faturamento por vertical, ranking de vendedores e produtos, comparação anual e evolução mensal — dados da planilha de vendas.',  badge:'Vendas',           cor:'#0d9488', action:"abrirRelatorio('vendas'); carregarVendas();" },
   { id:'guia',            icon:'📄', title:'Guia de Documentação',        desc:'Abra um modal interno para carregar o PDF e consultar o guia dentro do app.',                                                    badge:'Docs',             cor:'#0ea5e9', action:"abrirModalGuia()" },
   { id:'usuarios',        icon:'👤', title:'Manutenção de Usuários',      desc:'Criar, editar, trocar senha e desativar usuários do sistema.',                                                                    badge:'Admin',            cor:'#7c3aed', action:"abrirRelatorio('usuarios'); carregarUsuarios();", adminOnly: true },
@@ -1551,6 +1540,7 @@ function abrirRelatorio(id) {
     'cenario':          '📊 Acompanhamento Fabril',
     'usuarios':         '👤 Manutenção de Usuários',
   }[id] || 'Relatórios';
+  if (id === 'fechamento') setModoFechamento(_modoFechamento || 'm5');
 }
 
 function abrirModalGuia() {
@@ -2472,87 +2462,57 @@ function _renderListaCompras(dados, modo = 'criticos') {
 // ══════════════════════════════════════════════════════
 let _modoFechamento = 'm5';
 
-function setModoFechamento(modo) {
+async function setModoFechamento(modo) {
   _modoFechamento = modo;
   document.getElementById('tab-m5').className = 'btn btn-sm ' + (modo==='m5'?'btn-primary':'btn-secondary');
   document.getElementById('tab-m3').className = 'btn btn-sm ' + (modo==='m3'?'btn-primary':'btn-secondary');
-  document.getElementById('fech-taxa-group').style.display = modo === 'm5' ? 'flex' : 'none';
-  document.getElementById('fech-aba-destino').textContent = modo === 'm5' ? 'M5_Historico' : 'M3_Historico';
-  document.getElementById('fech-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Selecione o mês de referência e clique em Calcular</div></div>';
-  document.getElementById('fech-count').textContent = 'Selecione o mês e clique em Calcular';
+  document.getElementById('fech-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Selecione o mês de referência</div></div>';
+  document.getElementById('fech-count').textContent = 'Selecione o mês de referência';
   document.getElementById('fech-total').textContent = '';
   document.getElementById('fech-info-mes').style.display = 'none';
-  document.getElementById('fech-confirmar-bar').style.display = 'none';
   _dadosRel['fechamento'] = [];
+  await _carregarMesesFechamento();
 }
 
-async function calcularFechamento(forcar) {
-  const mesInput = document.getElementById('fech-mes').value; // formato yyyy-MM
-  if (!mesInput) { toast('Selecione o mês de referência.', 'warn'); return; }
-
-  let payload = { mesRef: mesInput, forcarRecalculo: !!forcar };
-  if (_modoFechamento === 'm5') {
-    const taxa = document.getElementById('fech-taxa').value;
-    // Taxa só é obrigatória se for de fato calcular (não precisa se só for ler o já arquivado,
-    // mas como não sabemos de antemão, exigimos sempre — é rápido de digitar)
-    if (!taxa || Number(taxa) <= 0) { toast('Informe a taxa do dólar do dia.', 'warn'); return; }
-    payload.taxaDolar = Number(taxa);
+async function _carregarMesesFechamento() {
+  const selectEl = document.getElementById('fech-mes');
+  selectEl.innerHTML = '<option value="">Carregando meses...</option>';
+  try {
+    const acao = _modoFechamento === 'm5' ? 'listarMesesHistoricoM5' : 'listarMesesHistoricoM3';
+    const res  = await api(acao, {});
+    const meses = res?.ok ? (res.meses || []) : [];
+    selectEl.innerHTML = '<option value="">Selecione...</option>' +
+      meses.map(m => `<option value="${esc(m.value)}">${esc(m.label)}</option>`).join('');
+  } catch(e) {
+    selectEl.innerHTML = '<option value="">Erro ao carregar meses</option>';
   }
+}
 
-  setLoading('fech-table-body', 'fech-count', 'Verificando mês de referência...');
-  document.getElementById('fech-confirmar-bar').style.display = 'none';
+async function calcularFechamento() {
+  const mesInput = document.getElementById('fech-mes').value; // formato yyyy-MM
+  if (!mesInput) return;
+
+  setLoading('fech-table-body', 'fech-count', 'Buscando histórico...');
   document.getElementById('fech-info-mes').style.display = 'none';
 
   try {
-    const acao = _modoFechamento === 'm5' ? 'calcularFechamentoM5' : 'calcularFechamentoM3';
-    const res  = await api(acao, payload);
-    if (!res?.ok) { toast(res?.mensagem || 'Erro ao calcular.', 'err', 6000); document.getElementById('fech-count').textContent = 'Erro'; return; }
+    const acao = _modoFechamento === 'm5' ? 'lerHistoricoM5' : 'lerHistoricoM3';
+    const res  = await api(acao, { mesRef: mesInput });
+    if (!res?.ok) { toast(res?.mensagem || 'Erro ao buscar histórico.', 'err', 6000); document.getElementById('fech-count').textContent = 'Erro'; return; }
 
     const linhas = res.linhas || [];
     _dadosRel['fechamento'] = linhas;
 
     const infoEl = document.getElementById('fech-info-mes');
     infoEl.style.display = 'block';
-
-    if (res.jaArquivado) {
-      // Mês já está fechado no Histórico — mostra os dados já gravados, sem recalcular
-      infoEl.style.background = 'rgba(22,163,74,.06)';
-      infoEl.style.borderColor = 'rgba(22,163,74,.3)';
-      infoEl.style.color = '#15803d';
-      infoEl.innerHTML =
-        `✅ <strong>O mês ${esc(res.mesAtual)} já está arquivado</strong> no histórico. Os valores abaixo são os que já foram gravados — nenhum cálculo novo foi feito. ` +
-        `<button onclick="calcularFechamento(true)" style="margin-left:8px;background:transparent;border:1px solid #15803d;color:#15803d;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">🔄 Recalcular mesmo assim</button>`;
-      _renderFechamento(linhas);
-      document.getElementById('fech-confirmar-bar').style.display = 'none'; // já está arquivado, nada a confirmar
-      document.getElementById('fech-count').innerHTML = `<strong>${fmtNum(linhas.length)}</strong> itens (já arquivados)`;
-      return;
-    }
-
-    if (res.bloqueadoParaArquivar) {
-      infoEl.style.background = 'rgba(220,38,38,.06)';
-      infoEl.style.borderColor = 'rgba(220,38,38,.3)';
-      infoEl.style.color = '#b91c1c';
-      infoEl.innerHTML =
-        `⚠️ <strong>Este mês está bloqueado para arquivamento.</strong> Já existe(m) o(s) mês(es) <strong>${res.mesesPosteriores.join(', ')}</strong> arquivado(s) no histórico, posterior(es) a este. ` +
-        `Você pode visualizar os valores abaixo (cálculo de conferência), mas recalcular e gravar este mês mudaria seu Saldo Fim Mês e desatualizaria o Estoque Inicial dos meses seguintes já fechados.`;
-    } else {
-      infoEl.style.background = '#fff';
-      infoEl.style.borderColor = 'var(--border)';
-      infoEl.style.color = 'var(--text-muted)';
-      infoEl.innerHTML =
-        `Calculando <strong>${esc(res.mesAtual)}</strong> — Estoque Inicial obtido do fechamento de <strong>${esc(res.mesAnterior)}</strong>. ` +
-        (linhas.some(l=>l.inicial===0) ? 'Itens com Inicial = 0 podem não ter fechamento anterior arquivado.' : '');
-    }
+    infoEl.style.background = '#fff';
+    infoEl.style.borderColor = 'var(--border)';
+    infoEl.style.color = 'var(--text-muted)';
+    infoEl.innerHTML = linhas.length
+      ? `Exibindo o fechamento já registrado no histórico de <strong>${esc(res.mesAtual)}</strong>.`
+      : `Nenhum fechamento encontrado no histórico para <strong>${esc(res.mesAtual)}</strong>.`;
 
     _renderFechamento(linhas);
-
-    const podeArquivar = linhas.length && !res.bloqueadoParaArquivar;
-    document.getElementById('fech-confirmar-bar').style.display = linhas.length ? 'flex' : 'none';
-    const btnConfirmar = document.querySelector('#fech-confirmar-bar button');
-    btnConfirmar.disabled = !podeArquivar;
-    btnConfirmar.style.opacity = podeArquivar ? '1' : '.5';
-    btnConfirmar.style.cursor = podeArquivar ? 'pointer' : 'not-allowed';
-    btnConfirmar.textContent = podeArquivar ? '✔ Confirmar e Arquivar' : '🔒 Bloqueado — mês posterior já arquivado';
   } catch(e) {
     document.getElementById('fech-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
     document.getElementById('fech-count').textContent = 'Erro';
@@ -2560,7 +2520,7 @@ async function calcularFechamento(forcar) {
 }
 
 function _renderFechamento(linhas) {
-  document.getElementById('fech-count').innerHTML = `<strong>${fmtNum(linhas.length)}</strong> itens calculados`;
+  document.getElementById('fech-count').innerHTML = `<strong>${fmtNum(linhas.length)}</strong> itens`;
   const totalGeral = linhas.reduce((s,l) => s + (Number(l.rsTotal)||Number(l.precoTotal)||0), 0);
   document.getElementById('fech-total').textContent = totalGeral ? `Total: R$ ${fmtMoeda(totalGeral)}` : '';
 
@@ -2660,32 +2620,6 @@ function _fotoFechamentoHtml(fotoRef, desc) {
   return `<img src="${esc(url)}" class="foto-zoom" style="width:32px;height:32px;border-radius:6px;object-fit:cover;background:#f0f4f5" data-src="${esc(urlGrande)}"${dataDesc} onclick="abrirLightboxEl(this)" onerror="this.style.display='none'" title="Clique para ampliar">`;
 }
 
-async function arquivarFechamento() {
-  const linhas = _dadosRel['fechamento'];
-  if (!linhas?.length) { toast('Nada para arquivar.', 'warn'); return; }
-  const mesInput = document.getElementById('fech-mes').value;
-  const abaDestino = _modoFechamento === 'm5' ? 'M5_Historico' : 'M3_Historico';
-
-  if (!confirm(`Confirma gravar ${linhas.length} itens em ${abaDestino}?\n\nIsso substitui qualquer fechamento anterior do mesmo mês.`)) return;
-
-  const btn = document.querySelector('#fech-confirmar-bar button');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:14px;height:14px"></span> Arquivando...';
-
-  try {
-    const acao = _modoFechamento === 'm5' ? 'arquivarFechamentoM5' : 'arquivarFechamentoM3';
-    const res  = await api(acao, { linhas, mesRef: mesInput });
-    if (res?.ok) {
-      toast(`✔ ${res.gravados} itens arquivados em ${abaDestino}!`);
-      document.getElementById('fech-confirmar-bar').style.display = 'none';
-    } else {
-      toast(res?.mensagem || 'Erro ao arquivar.', 'err', 6000);
-    }
-  } catch(e) {
-    toast('Erro: ' + e.message, 'err', 6000);
-  } finally {
-    btn.disabled = false; btn.innerHTML = '✔ Confirmar e Arquivar';
-  }
-}
 
 // ══════════════════════════════════════════════════════
 //  REL 9: DASHBOARD DE VENDAS
