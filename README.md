@@ -34,13 +34,19 @@ Hospedado via GitHub Pages, consome um backend Google Apps Script.
 ## Funcionalidades
 
 ### Menu dinâmico e personalizável
-Os cards do menu são gerados a partir do array `CARDS_PADRAO` em `index.html` e persistidos no `localStorage` do navegador.
+Os cards do menu são gerados a partir do array `CARDS_PADRAO` em `index.html`. A personalização feita pelo ADMIN é salva no backend (aba `CARDS_CONFIG` da planilha) — não é mais por navegador.
 
 **Botão ⚙ Personalizar** (visível apenas para ADMIN):
 - Editar ícone, título, descrição, etiqueta e cor de cada card
 - Reordenar com ▲ ▼
 - Remover cards
-- Restaurar configuração padrão
+- Restaurar configuração padrão (para todos os usuários espelhados)
+
+**Espelhamento entre usuários (opt-in):**
+- Ao salvar, o ADMIN marca quais usuários ativos recebem a personalização (lista de checkboxes no rodapé do modal)
+- Só uma configuração "principal" existe por vez — o último ADMIN que salvar sobrescreve a anterior
+- Usuários não marcados continuam vendo `CARDS_PADRAO`
+- O autor da configuração sempre a vê, mesmo sem se marcar na lista
 
 ### Controle de acesso por usuário
 
@@ -102,6 +108,10 @@ Clique em qualquer thumbnail de produto para abrir a foto ampliada (800px) em um
 | `atualizarUsuario` | Edita dados do usuário *(somente ADMIN)* | **Sim** |
 | `desativarUsuario` | Desativa usuário *(somente ADMIN)* | **Sim** |
 | `trocarSenha` | Altera senha *(somente ADMIN)* | **Sim** |
+| `obterCardsConfig` | Retorna a personalização de cards, se o usuário estiver liberado | Não |
+| `obterCardsConfigAdmin` | Retorna a personalização completa + lista de liberados *(somente ADMIN)* | Não |
+| `salvarCardsConfig` | Salva personalização de cards + lista de usuários liberados *(somente ADMIN)* | **Sim** |
+| `resetarCardsConfig` | Remove a personalização, volta todos ao `CARDS_PADRAO` *(somente ADMIN)* | **Sim** |
 
 ### Planilha Google Sheets
 ID: `1YMxrDY8aJk7NvMGd46mOjhJqnhw2bN7-xk-qh1QLCu8`
@@ -120,6 +130,18 @@ ID: `1YMxrDY8aJk7NvMGd46mOjhJqnhw2bN7-xk-qh1QLCu8`
 | `RELATORIOS` | IDs de relatórios liberados | IDs separados por vírgula, ou vazio para tudo |
 
 **Exemplo de valor em `RELATORIOS`:** `movimentos,estoque-insumos,estoque-pa`
+
+#### Aba CARDS_CONFIG — personalização espelhada dos cards do menu
+
+| Coluna | Descrição |
+|--------|-----------|
+| `CHAVE` | Sempre `principal` (configuração única, linha 2) |
+| `JSON` | Array de cards personalizados, serializado (`JSON.stringify`) |
+| `PERMITIDOS` | IDs de usuário liberados a ver essa personalização, separados por vírgula |
+| `ATUALIZADO_EM` | Data/hora do último salvamento |
+| `ATUALIZADO_POR` | ID do ADMIN que salvou (esse usuário sempre vê a config, mesmo fora de `PERMITIDOS`) |
+
+Criada manualmente (sem cabeçalho) — o cabeçalho é escrito automaticamente no primeiro `salvarCardsConfig`.
 
 ---
 
