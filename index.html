@@ -407,9 +407,15 @@
             <tbody id="cards-table-body"></tbody>
           </table>
         </div>
-        <div class="modal-cards-foot">
-          <button class="btn btn-secondary btn-sm" onclick="resetarCardsPadrao()">↺ Restaurar padrão</button>
-          <button class="btn btn-primary btn-sm" onclick="salvarPersonalizarCards()">✔ Salvar</button>
+        <div class="modal-cards-foot" style="flex-direction:column;align-items:stretch;gap:10px">
+          <div>
+            <div style="font-weight:700;font-size:12px;margin-bottom:6px;color:var(--text-muted)">Espelhar personalização para:</div>
+            <div id="cards-permitidos-lista" style="display:flex;flex-wrap:wrap;gap:8px;max-height:110px;overflow-y:auto"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <button class="btn btn-secondary btn-sm" onclick="resetarCardsPadrao()">↺ Restaurar padrão</button>
+            <button class="btn btn-primary btn-sm" onclick="salvarPersonalizarCards()">✔ Salvar</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1163,6 +1169,7 @@
 //  ESTADO
 // ══════════════════════════════════════════════════════
 let USUARIO = null;
+let _cardsConfig = null; // config de cards espelhada do backend (null = usar CARDS_PADRAO)
 let _dadosRel = {};
 let _sortState = {}; // { coluna, dir } por relatório
 
@@ -1280,8 +1287,14 @@ function _hexToRgb(hex) {
 }
 
 function carregarCards() {
-  try { return JSON.parse(localStorage.getItem('cards_config')) || CARDS_PADRAO; }
-  catch { return CARDS_PADRAO; }
+  return _cardsConfig || CARDS_PADRAO;
+}
+
+async function _carregarCardsRemoto() {
+  try {
+    const res = await api('obterCardsConfig', { usuarioId: USUARIO.id });
+    _cardsConfig = (res?.ok && res.cards) ? res.cards : null;
+  } catch { _cardsConfig = null; }
 }
 
 function isAdmin() { return USUARIO?.perfil?.trim().toUpperCase() === 'ADMIN'; }
@@ -1321,10 +1334,18 @@ function renderMenu() {
 }
 
 // ── Modal Personalizar ──
+let _cardsEdicao = []; // cópia de trabalho, só vira definitiva ao clicar em Salvar
+
 function abrirPersonalizarCards() {
-  const cards = carregarCards();
+  _cardsEdicao = JSON.parse(JSON.stringify(carregarCards()));
+  _renderTabelaCards();
+  document.getElementById('modal-cards').classList.add('visible');
+  _carregarPermitidosUI();
+}
+
+function _renderTabelaCards() {
   const tbody = document.getElementById('cards-table-body');
-  tbody.innerHTML = cards.map((c, i) => `
+  tbody.innerHTML = _cardsEdicao.map((c, i) => `
     <tr data-idx="${i}">
       <td style="text-align:center">
         <button class="btn-ord" onclick="_moverCard(${i},-1)" title="Subir">▲</button>
@@ -1337,7 +1358,6 @@ function abrirPersonalizarCards() {
       <td><input type="color" value="${c.cor || '#1a5c5a'}" data-field="cor" title="Cor do destaque"></td>
       <td><button class="btn-del" onclick="_removerCard(${i})" title="Remover">✕</button></td>
     </tr>`).join('');
-  document.getElementById('modal-cards').classList.add('visible');
 }
 
 function fecharPersonalizarCards() {
@@ -1347,50 +1367,83 @@ function fecharPersonalizarCards() {
 function _esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
 function _lerLinhasTabela() {
-  return Array.from(document.querySelectorAll('#cards-table-body tr')).map(tr => {
-    const idx = +tr.dataset.idx;
-    const orig = carregarCards()[idx] || {};
-    return {
-      id:     orig.id     || 'custom_' + Date.now(),
-      action: orig.action || '',
-      icon:   tr.querySelector('[data-field=icon]').value.trim(),
-      title:  tr.querySelector('[data-field=title]').value.trim(),
-      desc:   tr.querySelector('[data-field=desc]').value.trim(),
-      badge:  tr.querySelector('[data-field=badge]').value.trim(),
-      cor:    tr.querySelector('[data-field=cor]').value,
-    };
+  Array.from(document.querySelectorAll('#cards-table-body tr')).forEach(tr => {
+    const c = _cardsEdicao[+tr.dataset.idx];
+    if (!c) return;
+    c.icon  = tr.querySelector('[data-field=icon]').value.trim();
+    c.title = tr.querySelector('[data-field=title]').value.trim();
+    c.desc  = tr.querySelector('[data-field=desc]').value.trim();
+    c.badge = tr.querySelector('[data-field=badge]').value.trim();
+    c.cor   = tr.querySelector('[data-field=cor]').value;
   });
+  return _cardsEdicao;
 }
 
 function _moverCard(idx, dir) {
-  const cards = _lerLinhasTabela();
-  const novo  = idx + dir;
-  if (novo < 0 || novo >= cards.length) return;
-  [cards[idx], cards[novo]] = [cards[novo], cards[idx]];
-  localStorage.setItem('cards_config', JSON.stringify(cards));
-  abrirPersonalizarCards();
+  _lerLinhasTabela();
+  const novo = idx + dir;
+  if (novo < 0 || novo >= _cardsEdicao.length) return;
+  [_cardsEdicao[idx], _cardsEdicao[novo]] = [_cardsEdicao[novo], _cardsEdicao[idx]];
+  _renderTabelaCards();
 }
 
 function _removerCard(idx) {
   if (!confirm('Remover este card do menu?')) return;
-  const cards = _lerLinhasTabela();
-  cards.splice(idx, 1);
-  localStorage.setItem('cards_config', JSON.stringify(cards));
-  abrirPersonalizarCards();
+  _lerLinhasTabela();
+  _cardsEdicao.splice(idx, 1);
+  _renderTabelaCards();
 }
 
-function salvarPersonalizarCards() {
-  const cards = _lerLinhasTabela();
-  localStorage.setItem('cards_config', JSON.stringify(cards));
-  fecharPersonalizarCards();
-  renderMenu();
+// ── Espelhamento: seleção de usuários autorizados a receber a personalização ──
+async function _carregarPermitidosUI() {
+  const lista = document.getElementById('cards-permitidos-lista');
+  lista.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Carregando usuários...</span>';
+  try {
+    const [resUsuarios, resConfig] = await Promise.all([
+      api('listarUsuarios', { solicitanteId: USUARIO.id }),
+      api('obterCardsConfigAdmin', { solicitanteId: USUARIO.id }),
+    ]);
+    const usuarios   = (resUsuarios?.ok ? resUsuarios.usuarios : []).filter(u => u.ID !== USUARIO.id && u.Ativo === 'SIM');
+    const permitidos = (resConfig?.ok && resConfig.permitidos) ? resConfig.permitidos : [];
+    lista.innerHTML = usuarios.map(u => `
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;border:1px solid var(--border);border-radius:6px;padding:4px 8px">
+        <input type="checkbox" value="${u.ID}" ${permitidos.includes(u.ID) ? 'checked' : ''}> ${esc(u.Nome || u.Usuario)}
+      </label>`).join('') || '<span style="font-size:12px;color:var(--text-muted)">Nenhum usuário disponível.</span>';
+  } catch(e) {
+    lista.innerHTML = '<span style="font-size:12px;color:#dc2626">Erro ao carregar usuários.</span>';
+  }
 }
 
-function resetarCardsPadrao() {
-  if (!confirm('Restaurar a configuração original dos cards?')) return;
-  localStorage.removeItem('cards_config');
-  fecharPersonalizarCards();
-  renderMenu();
+function _lerPermitidosSelecionados() {
+  return Array.from(document.querySelectorAll('#cards-permitidos-lista input:checked')).map(i => i.value);
+}
+
+async function salvarPersonalizarCards() {
+  const cards      = _lerLinhasTabela();
+  const permitidos = _lerPermitidosSelecionados();
+  const btn = document.querySelector('#modal-cards .btn-primary');
+  btn.disabled = true;
+  try {
+    const res = await api('salvarCardsConfig', { solicitanteId: USUARIO.id, cards, permitidos });
+    if (!res?.ok) { toast(res?.mensagem || 'Erro ao salvar.', 'err'); return; }
+    _cardsConfig = cards;
+    fecharPersonalizarCards();
+    renderMenu();
+    toast('Personalização salva e espelhada com sucesso.');
+  } catch(e) { toast('Erro: ' + e.message, 'err'); }
+  finally { btn.disabled = false; }
+}
+
+async function resetarCardsPadrao() {
+  if (!confirm('Restaurar a configuração original dos cards para todos os usuários espelhados?')) return;
+  try {
+    const res = await api('resetarCardsConfig', { solicitanteId: USUARIO.id });
+    if (!res?.ok) { toast(res?.mensagem || 'Erro ao restaurar.', 'err'); return; }
+    _cardsConfig = null;
+    fecharPersonalizarCards();
+    renderMenu();
+    toast('Configuração restaurada ao padrão.');
+  } catch(e) { toast('Erro: ' + e.message, 'err'); }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1543,10 +1596,11 @@ function fecharLightbox() {
 
 function _lbKeyDown(e) { if (e.key === 'Escape') fecharLightbox(); }
 
-function entrarNoApp() {
+async function entrarNoApp() {
   document.getElementById('page-login').style.display = 'none';
   document.getElementById('app').classList.add('visible');
   document.getElementById('header-user').textContent = USUARIO.nome || USUARIO.usuario;
+  await _carregarCardsRemoto();
   renderMenu();
   voltarMenu();
 }
