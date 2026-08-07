@@ -2304,7 +2304,7 @@ async function _carregarBOMsDisponiveis() {
     const res = await api('listarBOMsDisponiveis');
     const itens = res?.itens || [];
     sel.innerHTML = '<option value="">— Selecione um PA —</option>' +
-      itens.map(i => `<option value="${esc(i.codigo)}">${esc(i.descricao)} (${esc(i.codigo)})</option>`).join('');
+      itens.map(i => `<option value="${_esc(i.codigo)}">${esc(i.descricao)} (${esc(i.codigo)})</option>`).join('');
     sel.dataset.carregado = 'true';
   } catch(e) {
     sel.innerHTML = '<option value="">Erro ao carregar BOMs</option>';
