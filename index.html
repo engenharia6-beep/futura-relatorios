@@ -2254,7 +2254,7 @@ function exportarExcel(rel) {
     abc:               ['rank','classe','codigo','descricao','_origem','valor','pctAcum'],
     extrato:           ['data','tipo','qtde','saldoApos','op','usuario','obs'],
     compras:           _modoCompras === 'pa'
-                          ? ['codigo','descricao','necessario','saldoAtual','temNoEstoque','faltaComprar','origem']
+                          ? ['codigo','descricao','uso','necessario','saldoAtual','faltaComprar','origem']
                           : ['criterio','codigo','descricao','tipo','saldoAtual','estoqueMin','estoqueSeg','sugerido','endereco'],
     fechamento:        _modoFechamento === 'm5'
                           ? ['codigo','descricao','um','portaria','ncm','destaque','nve','usdUnit','usdTax','rsUnit','inicial','entrada','saida','saldo','rsTotal','mesReferencia']
@@ -2440,7 +2440,7 @@ async function gerarListaPA() {
     const saldos    = resMovimentos?.saldos || resMovimentos || {};
 
     // Consolida necessidade por insumo
-    const mapa = {}; // codigoInsumo → { ...dados, necessario, temNoEstoque, faltaComprar }
+    const mapa = {}; // codigoInsumo → { ...dados, uso, necessario, faltaComprar }
 
     for (const pa of _paList) {
       const itensPA = estrutura.filter(e =>
@@ -2456,9 +2456,10 @@ async function gerarListaPA() {
             foto:        item.foto||'',
             codigo:      codIns,
             descricao:   item.descricaoInsumo||item.DESCRICAO_INSUMO||codIns,
+            uso:         qtdeUnit, // Quantidade do Item (coluna G) — consumo por unidade de PA
             necessario:  0,
             saldoAtual:  Number(saldos[codIns]||0),
-            origem:      [], // quais PAs pedem este insumo
+            origem:      [], // quais PAs (BOM) pedem este insumo
             grupo:       item.grupo||'',
             ordem_:      item.ordem_||'',
             ordem:       item.ordem||'',
@@ -2473,7 +2474,6 @@ async function gerarListaPA() {
     const resultado = Object.values(mapa)
       .map(i => ({
         ...i,
-        temNoEstoque:  Math.min(i.saldoAtual, i.necessario),
         faltaComprar:  Math.max(i.necessario - i.saldoAtual, 0),
         suficiente:    i.saldoAtual >= i.necessario,
         origem:        [...new Set(i.origem)].join(', '),
@@ -2513,20 +2513,20 @@ function _renderListaCompras(dados, modo = 'criticos') {
           <th>Foto</th>
           ${_thSort('compras','codigo','Código')}
           ${_thSort('compras','descricao','Descrição')}
-          ${_thSort('compras','necessario','Necessário','num')}
+          ${_thSort('compras','uso','Uso','num')}
+          ${_thSort('compras','necessario','Necessidade <span title="Quantidade Informada × Uso" style="opacity:.6;cursor:help">ⓘ</span>','num')}
           ${_thSort('compras','saldoAtual','Saldo Atual','num')}
-          ${_thSort('compras','temNoEstoque','Tem no Estoque','num')}
           ${_thSort('compras','faltaComprar','⬇ Falta Comprar','num')}
           <th>Status</th>
-          <th>PAs que pedem</th>
+          <th>BOM</th>
         </tr></thead>
         <tbody>${dados.map(i => `<tr ${i.faltaComprar<=0?'style="opacity:.6"':''}>
           <td>${_fotoFechamentoHtml(i.foto, i.descricao)}</td>
           <td class="mono">${esc(i.codigo)}</td>
           <td class="desc">${esc(i.descricao)}</td>
+          <td class="num">${fmtNum(i.uso)}</td>
           <td class="num">${fmtNum(i.necessario)}</td>
           <td class="num ${i.saldoAtual<=0?'neg':'pos'}">${fmtNum(i.saldoAtual)}</td>
-          <td class="num">${fmtNum(i.temNoEstoque)}</td>
           <td class="num" style="font-weight:800;${i.faltaComprar>0?'color:#d97706;font-size:14px':'color:#9ca3af'}">${i.faltaComprar>0?fmtNum(i.faltaComprar):'—'}</td>
           <td>${i.faltaComprar>0 ? '<span class="badge-critico">comprar</span>' : '<span class="badge-ok">ok</span>'}</td>
           <td style="font-size:11px;color:#4a6a6a">${esc(i.origem||'')}</td>
