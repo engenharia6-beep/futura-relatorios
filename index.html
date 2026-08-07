@@ -1210,6 +1210,14 @@ function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function fmtNum(n) { return Number(n||0).toLocaleString('pt-BR'); }
 function fmtMoeda(n) { const v = Number(n); return (isNaN(v) ? 0 : v).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 function fmtData(s) { return s ? String(s).substring(0,10).split('-').reverse().join('/') : ''; }
+// Compara dois valores para ordenação: numérico se ambos forem número, senão texto (pt-BR).
+function _cmpOrdenavel(a, b) {
+  const na = Number(a), nb = Number(b);
+  const numA = a !== '' && a !== null && a !== undefined && !isNaN(na);
+  const numB = b !== '' && b !== null && b !== undefined && !isNaN(nb);
+  if (numA && numB) return na - nb;
+  return String(a||'').localeCompare(String(b||''), 'pt-BR');
+}
 
 // Converte "dd/MM/yyyy HH:mm" ou "dd/MM/yyyy" → "yyyy-MM-dd" (só data, para filtros)
 function _toISO(dataStr) {
@@ -2445,11 +2453,15 @@ async function gerarListaPA() {
         if (!codIns || necessario <= 0) continue;
         if (!mapa[codIns]) {
           mapa[codIns] = {
+            foto:        item.foto||'',
             codigo:      codIns,
             descricao:   item.descricaoInsumo||item.DESCRICAO_INSUMO||codIns,
             necessario:  0,
             saldoAtual:  Number(saldos[codIns]||0),
             origem:      [], // quais PAs pedem este insumo
+            grupo:       item.grupo||'',
+            ordem_:      item.ordem_||'',
+            ordem:       item.ordem||'',
           };
         }
         mapa[codIns].necessario += necessario;
@@ -2457,7 +2469,7 @@ async function gerarListaPA() {
       }
     }
 
-    // Calcula o que falta — mantém TODOS os itens, ordena com pendências primeiro
+    // Calcula o que falta — mantém TODOS os itens, ordena por Grupo, Ordem_, Ordem (ordem da estrutura BOM)
     const resultado = Object.values(mapa)
       .map(i => ({
         ...i,
@@ -2466,12 +2478,7 @@ async function gerarListaPA() {
         suficiente:    i.saldoAtual >= i.necessario,
         origem:        [...new Set(i.origem)].join(', '),
       }))
-      .sort((a,b) => {
-        // Itens com falta primeiro (ordenados por maior falta), depois OKs
-        if (a.faltaComprar > 0 && b.faltaComprar === 0) return -1;
-        if (a.faltaComprar === 0 && b.faltaComprar > 0) return 1;
-        return b.faltaComprar - a.faltaComprar;
-      });
+      .sort((a,b) => _cmpOrdenavel(a.grupo, b.grupo) || _cmpOrdenavel(a.ordem_, b.ordem_) || _cmpOrdenavel(a.ordem, b.ordem));
 
     _dadosRel['compras'] = resultado;
     _renderListaCompras(resultado, 'pa');
@@ -2503,6 +2510,7 @@ function _renderListaCompras(dados, modo = 'criticos') {
     document.getElementById('compras-table-body').innerHTML = `
       <table>
         <thead><tr>
+          <th>Foto</th>
           ${_thSort('compras','codigo','Código')}
           ${_thSort('compras','descricao','Descrição')}
           ${_thSort('compras','necessario','Necessário','num')}
@@ -2513,6 +2521,7 @@ function _renderListaCompras(dados, modo = 'criticos') {
           <th>PAs que pedem</th>
         </tr></thead>
         <tbody>${dados.map(i => `<tr ${i.faltaComprar<=0?'style="opacity:.6"':''}>
+          <td>${_fotoFechamentoHtml(i.foto, i.descricao)}</td>
           <td class="mono">${esc(i.codigo)}</td>
           <td class="desc">${esc(i.descricao)}</td>
           <td class="num">${fmtNum(i.necessario)}</td>
