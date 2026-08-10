@@ -2310,6 +2310,7 @@ function _renderCompras() {
   if (_modoCompras === 'pa' && document.getElementById('pa-filtro-comprar')?.checked) {
     dados = dados.filter(i => i.faltaComprar > 0);
   }
+  _dadosRel['compras-filtrado'] = dados; // usado pelo exportarExcel
   _renderListaCompras(dados, _modoCompras);
 }
 
