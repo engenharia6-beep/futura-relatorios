@@ -2326,7 +2326,7 @@ async function gerarListaCriticos() {
     const termos   = busca.split(/\s+/).filter(Boolean);
 
     // Popula filtro de tipo
-    if (!document.getElementById('crit-tipo').options.length > 1) {
+    if (document.getElementById('crit-tipo').options.length <= 1) {
       const tipos = [...new Set(itens.map(i => i.tipo).filter(Boolean))].sort();
       const sel = document.getElementById('crit-tipo');
       sel.innerHTML = '<option value="">Todos</option>' + tipos.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
