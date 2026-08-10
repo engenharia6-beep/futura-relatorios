@@ -232,6 +232,8 @@
     tr:hover td{background:#f8fbfb}
     #fech-table-body th, #fech-table-body td{border:1px solid var(--border)}
     #fech-table-body tr:last-child td{border-bottom:1px solid var(--border)}
+    .tbl-grid th, .tbl-grid td{border:1px solid var(--border)}
+    .tbl-grid tr:last-child td{border-bottom:1px solid var(--border)}
     td.mono{font-family:var(--mono);font-size:11px}
     td.num{text-align:right;font-family:var(--mono);font-weight:600}
     td.num.pos{color:var(--success)}
@@ -2255,7 +2257,7 @@ function exportarExcel(rel) {
     extrato:           ['data','tipo','qtde','saldoApos','op','usuario','obs'],
     compras:           _modoCompras === 'pa'
                           ? ['codigo','descricao','uso','necessario','saldoAtual','faltaComprar','origem']
-                          : ['criterio','codigo','descricao','tipo','saldoAtual','estoqueMin','estoqueSeg','sugerido','endereco'],
+                          : ['codigo','descricao','tipo','saldoAtual','estoqueMin','estoqueSeg','sugerido','criterio'],
     fechamento:        _modoFechamento === 'm5'
                           ? ['codigo','descricao','um','portaria','ncm','destaque','nve','usdUnit','usdTax','rsUnit','inicial','entrada','saida','saldo','rsTotal','mesReferencia']
                           : ['codigo','descricao','projeto','ncm','endereco','precoUnit','inicial','entrada','saida','saldo','precoTotal','mesReferencia'],
@@ -2334,13 +2336,12 @@ async function gerarListaCriticos() {
     itens = itens.filter(i => {
       const s = i.estoqueAtual || 0;
       const min = i.estoqueMin  || 0;
-      const seg = i.estoqueSeg  || i.estoqueSeguranca || 0;
-      const pp  = i.pontoPedido || 0;
+      const seg = i.estoqueSeg  || 0;
       if (criterio === 'zerado')  return s <= 0;
       if (criterio === 'minimo')  return s <= min;
-      if (criterio === 'ponto')   return s <= pp;
-      // todos: zerado OU abaixo do mínimo OU abaixo do ponto de pedido
-      return s <= 0 || s <= min || (pp > 0 && s <= pp);
+      if (criterio === 'ponto')   return s <= seg;
+      // todos: zerado OU abaixo do mínimo OU abaixo da segurança
+      return s <= 0 || s <= min || (seg > 0 && s <= seg);
     });
 
     // Filtro tipo
@@ -2350,22 +2351,23 @@ async function gerarListaCriticos() {
       termos.every(t => i.codigo?.toLowerCase().includes(t) || i.descricao?.toLowerCase().includes(t))
     );
 
-    // Calcula quantidade sugerida = Estoque Segurança - Saldo atual (mínimo 1)
+    // Calcula quantidade sugerida = Estoque Segurança - Saldo atual (mínimo 1) — tudo em número inteiro
     const resultado = itens.map(i => {
-      const seg = i.estoqueSeg || i.estoqueSeguranca || i.estoqueMin || 0;
-      const falta = Math.max(seg - (i.estoqueAtual||0), 1);
+      const saldo = Math.round(i.estoqueAtual||0);
+      const min   = Math.round(i.estoqueMin||0);
+      const seg   = Math.round(i.estoqueSeg||i.estoqueMin||0);
+      const falta = Math.max(seg - saldo, 1);
       return {
+        foto:         i.foto||'',
         codigo:       i.codigo,
         descricao:    i.descricao,
         tipo:         i.tipo||'',
-        saldoAtual:   i.estoqueAtual||0,
-        estoqueMin:   i.estoqueMin||0,
+        saldoAtual:   saldo,
+        estoqueMin:   min,
         estoqueSeg:   seg,
-        pontoPedido:  i.pontoPedido||0,
         sugerido:     falta,
-        endereco:     i.endereco||'',
-        criterio:     (i.estoqueAtual||0) <= 0 ? 'Zerado' :
-                      (i.estoqueAtual||0) <= (i.estoqueMin||0) ? 'Abaixo Mínimo' : 'Abaixo Ponto Pedido',
+        criterio:     saldo <= 0 ? 'Zerado' :
+                      saldo <= min ? 'Abaixo Mínimo' : 'Abaixo Ponto Pedido',
       };
     }).sort((a,b) => a.saldoAtual - b.saldoAtual); // mais críticos primeiro
 
@@ -2534,20 +2536,20 @@ function _renderListaCompras(dados, modo = 'criticos') {
       </table>`;
   } else {
     document.getElementById('compras-table-body').innerHTML = `
-      <table>
+      <table class="tbl-grid">
         <thead><tr>
-          ${_thSort('compras','criterio','Situação')}
+          <th>Foto</th>
           ${_thSort('compras','codigo','Código')}
           ${_thSort('compras','descricao','Descrição')}
           ${_thSort('compras','tipo','Tipo')}
-          ${_thSort('compras','saldoAtual','Saldo Atual','num')}
+          ${_thSort('compras','saldoAtual','Saldo','num')}
           ${_thSort('compras','estoqueMin','Mínimo','num')}
           ${_thSort('compras','estoqueSeg','Segurança','num')}
-          ${_thSort('compras','sugerido','⬇ Sugerido Comprar','num')}
-          <th>Endereço</th>
+          ${_thSort('compras','sugerido','⬇ Compra','num')}
+          ${_thSort('compras','criterio','Situação')}
         </tr></thead>
         <tbody>${dados.map(i => `<tr>
-          <td><span class="${i.saldoAtual<=0?'badge-critico':i.criterio.includes('Mínimo')?'badge-baixo':'badge-b'}">${esc(i.criterio)}</span></td>
+          <td>${_fotoFechamentoHtml(i.foto, i.descricao)}</td>
           <td class="mono">${esc(i.codigo)}</td>
           <td class="desc">${esc(i.descricao)}</td>
           <td style="font-size:11px;color:#4a6a6a">${esc(i.tipo)}</td>
@@ -2555,7 +2557,7 @@ function _renderListaCompras(dados, modo = 'criticos') {
           <td class="num">${fmtNum(i.estoqueMin)}</td>
           <td class="num">${fmtNum(i.estoqueSeg)}</td>
           <td class="num" style="font-weight:800;color:#d97706;font-size:14px">${fmtNum(i.sugerido)}</td>
-          <td class="mono" style="font-size:11px">${esc(i.endereco||'—')}</td>
+          <td><span class="${i.saldoAtual<=0?'badge-critico':i.criterio.includes('Mínimo')?'badge-baixo':'badge-b'}">${esc(i.criterio)}</span></td>
         </tr>`).join('')}</tbody>
       </table>`;
   }
