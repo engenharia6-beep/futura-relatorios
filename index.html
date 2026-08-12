@@ -15,8 +15,8 @@
 </head>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
   <style>
     :root {
       --bg:#f0f4f5; --bg-card:#ffffff; --bg-input:#ffffff;
@@ -583,7 +583,7 @@
       <div class="filtros-bar">
         <div class="filtro-group" style="min-width:240px">
           <label>Buscar</label>
-          <input type="text" id="ei-busca" placeholder="Código ou descrição..." oninput="filtrarEstoqueInsumos()">
+          <input type="text" id="ei-busca" placeholder="Código ou descrição..." oninput="_filtrarEstoqueInsumosDebounced()">
         </div>
         <div class="filtro-group">
           <label>Status</label>
@@ -623,7 +623,7 @@
       <div class="filtros-bar">
         <div class="filtro-group" style="min-width:240px">
           <label>Buscar</label>
-          <input type="text" id="ep-busca" placeholder="Código ou descrição..." oninput="filtrarEstoquePA()">
+          <input type="text" id="ep-busca" placeholder="Código ou descrição..." oninput="_filtrarEstoquePADebounced()">
         </div>
         <div class="filtro-group">
           <label>Status</label>
@@ -1047,7 +1047,7 @@
         <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
         <div class="rel-title">📈 Relatório F5 - Contabil</div>
         <div class="rel-actions">
-          <button class="btn btn-secondary btn-sm" onclick="carregarVendasSegmento()">🔄 Atualizar</button>
+          <button class="btn btn-secondary btn-sm" onclick="carregarVendasSegmento(true)">🔄 Atualizar</button>
           <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
         </div>
       </div>
@@ -1212,6 +1212,13 @@ function toast(msg, tipo = 'ok', dur = 3500) {
 //  HELPERS
 // ══════════════════════════════════════════════════════
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// Atrasa a chamada de fn até `ms` sem novas chamadas — usado em busca "ao vivo"
+function _debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+const _filtrarEstoqueInsumosDebounced = _debounce(() => filtrarEstoqueInsumos(), 250);
+const _filtrarEstoquePADebounced      = _debounce(() => filtrarEstoquePA(), 250);
 function fmtNum(n) { return Number(n||0).toLocaleString('pt-BR'); }
 function fmtMoeda(n) { const v = Number(n); return (isNaN(v) ? 0 : v).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 function fmtData(s) { return s ? String(s).substring(0,10).split('-').reverse().join('/') : ''; }
@@ -2739,7 +2746,7 @@ function _fotoFechamentoHtml(fotoRef, desc) {
   if (!url) return `<div style="width:32px;height:32px;border-radius:6px;background:#f0f4f5;display:flex;align-items:center;justify-content:center;font-size:14px;color:#c8d8da">📦</div>`;
   const urlGrande = url.replace(/sz=w\d+/, 'sz=w800');
   const dataDesc  = desc ? ` data-desc="${esc(desc)}"` : '';
-  return `<img src="${esc(url)}" class="foto-zoom" style="width:32px;height:32px;border-radius:6px;object-fit:cover;background:#f0f4f5" data-src="${esc(urlGrande)}"${dataDesc} onclick="abrirLightboxEl(this)" onerror="this.style.display='none'" title="Clique para ampliar">`;
+  return `<img src="${esc(url)}" class="foto-zoom" style="width:32px;height:32px;border-radius:6px;object-fit:cover;background:#f0f4f5" data-src="${esc(urlGrande)}"${dataDesc} loading="lazy" decoding="async" onclick="abrirLightboxEl(this)" onerror="this.style.display='none'" title="Clique para ampliar">`;
 }
 
 
@@ -2748,9 +2755,15 @@ function _fotoFechamentoHtml(fotoRef, desc) {
 // ══════════════════════════════════════════════════════
 // Registra o plugin de rótulos de dados globalmente, mas desabilitado por padrão —
 // só o gráfico mensal (que foi desenhado para isso) liga explicitamente via options.plugins.datalabels
-if (typeof ChartDataLabels !== 'undefined') {
-  Chart.register(ChartDataLabels);
-  Chart.defaults.set('plugins.datalabels', { display: false });
+// Chamado sob demanda (não no carregamento da página) porque Chart.js agora carrega com "defer".
+let _chartSetupDone = false;
+function _ensureChartSetup() {
+  if (_chartSetupDone) return;
+  _chartSetupDone = true;
+  if (typeof ChartDataLabels !== 'undefined') {
+    Chart.register(ChartDataLabels);
+    Chart.defaults.set('plugins.datalabels', { display: false });
+  }
 }
 
 let _vendasCarregado = false;
@@ -2950,6 +2963,7 @@ function _renderCenarioGraficoAnual(anual) {
   const fmt      = v => v >= 1000 ? 'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : 'R$ '+Math.round(v);
 
   const ctx = document.getElementById('cenario-grafico-anual').getContext('2d');
+  _ensureChartSetup();
   _cenarioGraficoAnual = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [
@@ -3001,6 +3015,7 @@ function _renderCenarioGraficoDiario(diario) {
   const labels     = diario.map(d => 'Dia ' + d.dia);
 
   const ctx = document.getElementById('cenario-grafico-diario').getContext('2d');
+  _ensureChartSetup();
   _cenarioGraficoDiario = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [{ label:'Faturamento', data: diario.map(d => d.valor), backgroundColor: cores, borderRadius: 3 }] },
@@ -3208,6 +3223,7 @@ function _montarGraficoMensal(resumoMes) {
 
   const ctx = document.getElementById('v-grafico-mensal').getContext('2d');
   if (_graficoMensal) _graficoMensal.destroy();
+  _ensureChartSetup();
   _graficoMensal = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [
@@ -3268,6 +3284,7 @@ function _montarGraficoDiario(vendaDiaria) {
   const coresDiario = vendaDiaria.map((d,i) => i === idxMelhorDia ? '#0d3d3b' : '#1a5c5a');
   const ctx = document.getElementById('v-grafico-diario').getContext('2d');
   if (_graficoDiario) _graficoDiario.destroy();
+  _ensureChartSetup();
   _graficoDiario = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [{ label:'Faturamento', data: vendaDiaria.map(d=>d.Faturamento||0),
@@ -3301,6 +3318,7 @@ function _montarGraficoAnual(compAnual) {
 
   const ctx = document.getElementById('v-grafico-anual').getContext('2d');
   if (_graficoAnual) _graficoAnual.destroy();
+  _ensureChartSetup();
   _graficoAnual = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [
@@ -3371,6 +3389,7 @@ function _montarPainelVendedores(vendedores) {
   const cores = top.map(v => v.Vertical==='CLEAR' ? '#1a73e8' : v.Vertical==='VTV' ? '#ca8a04' : '#16a34a');
   const ctx = document.getElementById('v-grafico-top-vendedores').getContext('2d');
   if (_graficoTopVend) _graficoTopVend.destroy();
+  _ensureChartSetup();
   _graficoTopVend = new Chart(ctx, {
     type: 'bar',
     data: { labels: top.map(v=>v.Vendedor), datasets: [{ label:'Faturamento', data: top.map(v=>v.FatTotal||0), backgroundColor: cores }] },
@@ -3446,6 +3465,7 @@ function atualizarEvolucaoVendedor() {
 
   const ctx = document.getElementById('v-grafico-evolucao-vendedor').getContext('2d');
   if (_graficoEvolVend) _graficoEvolVend.destroy();
+  _ensureChartSetup();
   _graficoEvolVend = new Chart(ctx, {
     type: 'line',
     data: { labels: meses, datasets: [{ label:'Faturamento', data: vals, borderColor:'#1a5c5a', backgroundColor:'rgba(26,92,90,.15)', tension:.2, fill:true }] },
@@ -3474,7 +3494,7 @@ function _montarPainelProdutos(produtos) {
                  (p.Grupo?`<span class="tag-grupo">${esc(p.Grupo)}</span>`:'') +
                  (p.Familia?`<span class="tag-familia">${esc(p.Familia)}</span>`:'');
     const fotoHtml = p.Foto
-      ? `<img class="foto-produto-vendas foto-zoom" src="${esc(p.Foto)}" data-src="${esc(p.Foto)}" data-desc="${esc(p.Descricao||'')}" onclick="abrirLightboxEl(this)" onerror="this.outerHTML='<div class=&quot;foto-placeholder-vendas&quot;>📷</div>'" title="Clique para ampliar">`
+      ? `<img class="foto-produto-vendas foto-zoom" src="${esc(p.Foto)}" data-src="${esc(p.Foto)}" data-desc="${esc(p.Descricao||'')}" loading="lazy" decoding="async" onclick="abrirLightboxEl(this)" onerror="this.outerHTML='<div class=&quot;foto-placeholder-vendas&quot;>📷</div>'" title="Clique para ampliar">`
       : '<div class="foto-placeholder-vendas">📷</div>';
     let desc = p.Descricao || '';
     if (desc.length > 70) desc = desc.substring(0,70)+'...';
@@ -3494,6 +3514,7 @@ function _montarPainelProdutos(produtos) {
   const cores = top.map(p => p.Grupo==='CLEAR VEICULAR' ? '#1a73e8' : p.Grupo==='VTV CFTV' ? '#ca8a04' : '#16a34a');
   const ctx = document.getElementById('v-grafico-top-produtos').getContext('2d');
   if (_graficoTopProd) _graficoTopProd.destroy();
+  _ensureChartSetup();
   _graficoTopProd = new Chart(ctx, {
     type: 'bar',
     data: { labels: top.map(p=>p.Codigo), datasets: [{ label:'Faturamento', data: top.map(p=>p.FatTotal||0), backgroundColor: cores }] },
@@ -3625,7 +3646,9 @@ function _renderVsegLocal(meses, porLocalidade, totalGeral) {
   document.getElementById('vseg-tabela-local').innerHTML = `${thead}<tbody>${corpo}${totalRow}</tbody>`;
 }
 
-async function carregarVendasSegmento() {
+let _vendasSegmentoCarregado = false;
+async function carregarVendasSegmento(forcar = false) {
+  if (_vendasSegmentoCarregado && !forcar) return; // evita recarregar a cada clique no card
   const loadingEl = document.getElementById('vseg-loading');
   const contentEl = document.getElementById('vseg-content');
   loadingEl.style.display = 'block';
@@ -3638,6 +3661,7 @@ async function carregarVendasSegmento() {
       loadingEl.innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-text">${esc(res?.mensagem || 'Erro ao carregar dados.')}</div>`;
       return;
     }
+    _vendasSegmentoCarregado = true;
     const meses = res.meses || [];
     _renderVsegGrupo(meses, res.porGrupo || [], res.totalGeral);
     _renderVsegLocal(meses, res.porLocalidade || [], res.totalGeral);
