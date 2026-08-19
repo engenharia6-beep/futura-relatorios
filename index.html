@@ -701,6 +701,36 @@
       </div>
     </div>
 
+    <!-- ══ RELATÓRIO: PRODUÇÃO DIÁRIA ══ -->
+    <div id="rel-producao" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">🏗️ Produção Diária</div>
+        <div class="rel-actions">
+          <button class="btn btn-excel btn-sm" onclick="exportarExcel('producao')">⬇ Excel</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+      <div class="filtros-bar">
+        <div class="filtro-group" style="min-width:180px">
+          <label>Mês/Ano</label>
+          <select id="prod-mesano"><option value="">Carregando...</option></select>
+        </div>
+        <div class="filtro-group" style="min-width:160px">
+          <label>Processo</label>
+          <select id="prod-processo"><option value="">Todos</option></select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="gerarProducaoDiaria()" style="margin-top:20px">🔍 Gerar</button>
+      </div>
+      <div id="prod-resumo-grupo" style="display:none;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+      <div class="table-wrap">
+        <div class="table-info"><span id="prod-count">Selecione o mês e clique em Gerar</span></div>
+        <div id="prod-table-body">
+          <div class="empty"><div class="empty-icon">🏗️</div><div class="empty-text">Selecione o mês e clique em Gerar</div></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ RELATÓRIO 5: CURVA ABC ══ -->
     <div id="rel-abc" class="rel-panel">
       <div class="rel-header">
@@ -1291,6 +1321,7 @@ const CARDS_PADRAO = [
   { id:'estoque-insumos', icon:'📦', title:'Posição de Estoque — Insumos',desc:'Saldo atual de todos os insumos com endereço, estoque mínimo e status (ok / crítico / zerado).',                                badge:'Insumos',          cor:'',        action:"abrirRelatorio('estoque-insumos')" },
   { id:'estoque-pa',      icon:'🏭', title:'Posição de Estoque — PA',     desc:'Saldo atual de todos os produtos acabados com endereço e status.',                                                                badge:'Produtos Acabados',cor:'',        action:"abrirRelatorio('estoque-pa')" },
   { id:'ops',             icon:'📋', title:'OPs por Período',             desc:'Ordens de produção pagas em um intervalo de datas com código, descrição, qtde e pedido.',                                        badge:'Ordens de Produção',cor:'',       action:"abrirRelatorio('ops')" },
+  { id:'producao',        icon:'🏗️', title:'Produção Diária',            desc:'Quantidade produzida por dia, por produto e por grupo, com filtro de mês e processo. Só conta lançamentos finalizados.',            badge:'Produção',         cor:'#dc2626', action:"abrirRelatorio('producao'); _carregarFiltrosProducao();" },
   { id:'abc',             icon:'📊', title:'Curva ABC',                   desc:'Produtos classificados por volume de movimentação no período. Identifica os itens mais críticos.',                                badge:'Análise',          cor:'',        action:"abrirRelatorio('abc')" },
   { id:'extrato',         icon:'🔍', title:'Extrato de Produto',          desc:'Histórico completo de um produto específico com saldo progressivo a cada movimento.',                                            badge:'Insumo ou PA',     cor:'',        action:"abrirRelatorio('extrato')" },
   { id:'compras',         icon:'🛒', title:'Lista de Compras',            desc:'Gera lista de compras por itens críticos (zerado/mínimo/ponto de pedido) ou baseada na estrutura de PAs a produzir.',            badge:'Compras',          cor:'#d97706', action:"abrirRelatorio('compras')" },
@@ -1646,6 +1677,7 @@ function abrirRelatorio(id) {
     'estoque-insumos':  '📦 Estoque Insumos',
     'estoque-pa':       '🏭 Estoque PA',
     'ops':              '📋 OPs',
+    'producao':         '🏗️ Produção Diária',
     'abc':              '📊 Curva ABC',
     'extrato':          '🔍 Extrato',
     'compras':          '🛒 Lista de Compras',
@@ -1799,6 +1831,7 @@ function sortRel(rel, col) {
   if (rel === 'extrato')         _renderExtratoRows(dados);
   if (rel === 'fechamento')      _renderFechamento(dados);
   if (rel === 'compras')         { _dadosRel['compras'] = dados; _renderCompras(); }
+  if (rel === 'producao')        { _dadosRel['producao'] = dados; _renderProducaoDiaria(dados, _dadosRel['producao-dias'] || []); }
 }
 
 function _thSort(rel, col, label, cls='') {
@@ -2095,6 +2128,95 @@ async function gerarOPs() {
 }
 
 // ══════════════════════════════════════════════════════
+//  REL: PRODUÇÃO DIÁRIA
+// ══════════════════════════════════════════════════════
+async function _carregarFiltrosProducao() {
+  const selMes = document.getElementById('prod-mesano');
+  if (selMes.dataset.carregado === 'true') return;
+  selMes.innerHTML = '<option value="">Carregando...</option>';
+  try {
+    const res = await api('listarFiltrosProducao');
+    const meses     = res?.meses || [];
+    const processos = res?.processos || [];
+    selMes.innerHTML = '<option value="">Selecione...</option>' +
+      meses.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    if (meses.length) selMes.value = meses[meses.length - 1]; // mês mais recente por padrão
+    const selProc = document.getElementById('prod-processo');
+    selProc.innerHTML = '<option value="">Todos</option>' +
+      processos.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+    selMes.dataset.carregado = 'true';
+  } catch(e) {
+    selMes.innerHTML = '<option value="">Erro ao carregar</option>';
+  }
+}
+
+async function gerarProducaoDiaria() {
+  const mesAno = document.getElementById('prod-mesano').value;
+  if (!mesAno) { toast('Selecione o Mês/Ano.', 'warn'); return; }
+  const processo = document.getElementById('prod-processo').value;
+  setLoading('prod-table-body', 'prod-count', 'Calculando produção...');
+  document.getElementById('prod-resumo-grupo').style.display = 'none';
+  try {
+    const res = await api('listarProducaoDiaria', { mesAno, processo });
+    if (!res?.ok) {
+      document.getElementById('prod-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">${esc(res?.mensagem||'Erro ao gerar.')}</div></div>`;
+      document.getElementById('prod-count').textContent = 'Erro';
+      return;
+    }
+    _dadosRel['producao']      = res.produtos || [];
+    _dadosRel['producao-dias'] = res.dias || [];
+    _renderResumoGrupoProducao(res.porGrupo || []);
+    _renderProducaoDiaria(res.produtos || [], res.dias || []);
+  } catch(e) {
+    document.getElementById('prod-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div></div>`;
+    document.getElementById('prod-count').textContent = 'Erro';
+  }
+}
+
+function _renderResumoGrupoProducao(porGrupo) {
+  const el = document.getElementById('prod-resumo-grupo');
+  if (!porGrupo.length) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  const cores = ['teal','blue','orange','purple','yellow','green'];
+  el.innerHTML = porGrupo.map((g,i) => `
+    <div class="vendas-card ${cores[i % cores.length]}">
+      <p class="vendas-card-label">${esc(g.grupo)}</p>
+      <p class="vendas-card-valor">${fmtNum(g.mensal)}</p>
+    </div>`).join('');
+}
+
+function _renderProducaoDiaria(produtos, dias) {
+  const total = produtos.reduce((s,p) => s + (p.mensal||0), 0);
+  document.getElementById('prod-count').innerHTML = `<strong>${fmtNum(produtos.length)}</strong> produto(s) · <strong>${fmtNum(total)}</strong> unidades produzidas`;
+
+  if (!produtos.length) {
+    document.getElementById('prod-table-body').innerHTML = '<div class="empty"><div class="empty-icon">🏗️</div><div class="empty-text">Nenhuma produção finalizada encontrada para esse filtro.</div></div>';
+    return;
+  }
+
+  const colsDias = dias.map(d => `<th style="text-align:right;font-size:10px;white-space:nowrap">${d}</th>`).join('');
+  document.getElementById('prod-table-body').innerHTML = `
+    <table class="tbl-grid">
+      <thead><tr>
+        <th>Foto</th>
+        ${_thSort('producao','codigo','Código')}
+        ${_thSort('producao','descricao','Descrição')}
+        ${_thSort('producao','grupo','Grupo')}
+        ${_thSort('producao','mensal','Mensal','num')}
+        ${colsDias}
+      </tr></thead>
+      <tbody>${produtos.map(p => `<tr>
+        <td>${_fotoFechamentoHtml(p.foto||'', p.descricao||'')}</td>
+        <td class="mono">${esc(p.codigo)}</td>
+        <td class="desc">${esc(p.descricao)}</td>
+        <td style="font-size:11px;color:#4a6a6a">${esc(p.grupo)}</td>
+        <td class="num" style="font-weight:800">${fmtNum(p.mensal)}</td>
+        ${dias.map(d => `<td class="num">${p.porDia?.[d] ? fmtNum(p.porDia[d]) : '—'}</td>`).join('')}
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+// ══════════════════════════════════════════════════════
 //  REL 5: CURVA ABC
 // ══════════════════════════════════════════════════════
 async function gerarABC() {
@@ -2272,6 +2394,7 @@ function exportarExcel(rel) {
     fechamento:        _modoFechamento === 'm5'
                           ? ['codigo','descricao','um','portaria','ncm','destaque','nve','usdUnit','usdTax','rsUnit','inicial','entrada','saida','saldo','rsTotal','mesReferencia']
                           : ['codigo','descricao','projeto','ncm','endereco','precoUnit','inicial','entrada','saida','saldo','precoTotal','mesReferencia'],
+    producao:          ['codigo','descricao','grupo','mensal'],
   };
 
   const cols = mapeamentos[rel] || Object.keys(dados[0]);
