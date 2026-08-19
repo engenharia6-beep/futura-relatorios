@@ -2195,6 +2195,7 @@ function _renderProducaoDiaria(produtos, dias) {
   }
 
   const colsDias = dias.map(d => `<th style="text-align:right;font-size:10px;white-space:nowrap">${d}</th>`).join('');
+  const totalPorDia = dias.map(d => produtos.reduce((s,p) => s + (p.porDia?.[d]||0), 0));
   document.getElementById('prod-table-body').innerHTML = `
     <table class="tbl-grid">
       <thead><tr>
@@ -2212,7 +2213,13 @@ function _renderProducaoDiaria(produtos, dias) {
         <td style="font-size:11px;color:#4a6a6a">${esc(p.grupo)}</td>
         <td class="num" style="font-weight:800">${fmtNum(p.mensal)}</td>
         ${dias.map(d => `<td class="num">${p.porDia?.[d] ? fmtNum(p.porDia[d]) : '—'}</td>`).join('')}
-      </tr>`).join('')}</tbody>
+      </tr>`).join('')}
+      <tr style="background:#f0f6f6">
+        <td colspan="4" style="font-weight:800;text-align:right">TOTAIS</td>
+        <td class="num" style="font-weight:800">${fmtNum(total)}</td>
+        ${totalPorDia.map(t => `<td class="num" style="font-weight:800">${t ? fmtNum(t) : '—'}</td>`).join('')}
+      </tr>
+      </tbody>
     </table>`;
 }
 
