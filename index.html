@@ -973,6 +973,7 @@
         <button id="vtab-vendedores" class="btn btn-secondary btn-sm" onclick="setSubAbaVendas('vendedores')" style="flex:1">👤 Vendedores</button>
         <button id="vtab-produtos" class="btn btn-secondary btn-sm" onclick="setSubAbaVendas('produtos')" style="flex:1">📦 Produtos</button>
         <button id="vtab-analises" class="btn btn-secondary btn-sm" onclick="setSubAbaVendas('analises')" style="flex:1">📈 Análises</button>
+        <button id="vtab-clientes" class="btn btn-secondary btn-sm" onclick="setSubAbaVendas('clientes')" style="flex:1">👥 Clientes</button>
       </div>
 
       <div id="vendas-loading" class="empty"><div class="empty-icon">💹</div><div class="empty-text">Carregando dados de vendas...</div></div>
@@ -1101,6 +1102,38 @@
         <div class="vendas-secao">
           <div class="vendas-secao-titulo">Ticket Médio por Família ao longo do tempo</div>
           <canvas id="an-grafico-ticket-medio" height="100"></canvas>
+        </div>
+      </div>
+
+      <!-- SUB-ABA: CLIENTES -->
+      <div id="vendas-sub-clientes" class="vendas-sub" style="display:none">
+        <div id="cli-cards" class="vendas-cards"></div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Concentração de Receita (Curva de Pareto)</div>
+          <div id="cli-resumo-pareto" style="font-size:13px;color:var(--text-muted);margin-bottom:10px"></div>
+          <canvas id="cli-grafico-pareto" height="90"></canvas>
+        </div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">⚠ Clientes Inativos — compravam antes, sumiram no último mês</div>
+          <div id="cli-resumo-inativos" style="font-size:13px;color:var(--text-muted);margin-bottom:10px"></div>
+          <div class="table-wrap" style="overflow-x:auto">
+            <table class="tbl-grid">
+              <thead><tr><th>Cliente</th><th>Vendedor</th><th>Vertical</th><th>Última compra</th><th>Faturamento histórico</th><th>Pedidos</th></tr></thead>
+              <tbody id="cli-tabela-inativos"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Ranking de Clientes</div>
+          <div class="table-wrap" style="overflow-x:auto">
+            <table class="tbl-grid">
+              <thead><tr><th>#</th><th>Cliente</th><th>Vendedor</th><th>Vertical</th><th>Faturamento</th><th>Qtde</th><th>Pedidos</th><th>Ticket Médio</th></tr></thead>
+              <tbody id="cli-tabela-ranking"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -2925,6 +2958,8 @@ function _ensureChartSetup() {
 let _vendasCarregado = false;
 let _todosVendedores = [];
 let _todosProdutos   = [];
+let _todosClientes   = [];
+let _mesesClientes   = [];
 let _graficoMensal, _graficoDiario, _graficoAnual, _graficoTopVend, _graficoEvolVend;
 
 function fmtBrl(v) { v = Number(v)||0; return 'R$ ' + Math.round(v).toLocaleString('pt-BR'); }
@@ -2945,7 +2980,7 @@ function _sortMeses(arr) {
 }
 
 function setSubAbaVendas(nome) {
-  ['dashboard','vendedores','produtos','analises'].forEach(n => {
+  ['dashboard','vendedores','produtos','analises','clientes'].forEach(n => {
     document.getElementById('vendas-sub-'+n).style.display = n===nome ? 'block' : 'none';
     document.getElementById('vtab-'+n).className = 'btn btn-sm ' + (n===nome ? 'btn-primary' : 'btn-secondary');
   });
@@ -3326,6 +3361,8 @@ async function carregarVendas() {
     _vendasCarregado = true;
     _todosVendedores = res.vendedores || [];
     _todosProdutos   = res.produtos   || [];
+    _todosClientes   = res.clientes   || [];
+    _mesesClientes   = res.mesesClientes || [];
 
     setSubAbaVendas('dashboard');
     _montarCardsVertical(res.resumoMes || [], res.resumoGeral || {});
@@ -3335,6 +3372,7 @@ async function carregarVendas() {
     _montarPainelVendedores(_todosVendedores);
     _montarPainelProdutos(_todosProdutos);
     _montarAnalisesVendas(_todosProdutos);
+    _montarClientesVendas(_todosClientes, _mesesClientes);
   } catch(e) {
     document.getElementById('vendas-loading').style.display = 'block';
     document.getElementById('vendas-loading').innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div>`;
@@ -3930,6 +3968,111 @@ function _renderAnalisesVendas(produtos) {
     options: { responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } } },
       scales:{ y:{ ticks:{ callback:v=>fmtBrl(v) } } } },
   });
+}
+
+// ══════════════════════════════════════════════════════
+//  CLIENTES — agregado de BASE_DASH por razao_social
+// ══════════════════════════════════════════════════════
+let _cliGraficoPareto;
+
+function _montarClientesVendas(clientes, meses) {
+  const cardsEl = document.getElementById('cli-cards');
+  cardsEl.innerHTML = '';
+  if (!clientes.length) {
+    cardsEl.innerHTML = '<div class="empty"><div class="empty-text">Sem dados na aba BASE_DASH.</div></div>';
+    return;
+  }
+
+  const totalFat    = clientes.reduce((s,c) => s + (c.Faturamento||0), 0);
+  const ticketMedio = clientes.length ? totalFat / clientes.length : 0;
+  const ultimoMes   = meses[meses.length-1];
+  const inativos    = _clientesInativos(clientes, meses);
+
+  cardsEl.appendChild(_criarCardVendas('blue', 'Qtde Clientes', fmtNum(clientes.length), 'com compras no período'));
+  cardsEl.appendChild(_criarCardVendas('green', 'Faturamento Total', fmtBrl(totalFat), 'soma geral'));
+  cardsEl.appendChild(_criarCardVendas('purple', 'Ticket Médio', fmtBrl(ticketMedio), 'por cliente'));
+  cardsEl.appendChild(_criarCardVendas('orange', 'Clientes Inativos', fmtNum(inativos.length), ultimoMes ? `sem compra em ${_mesLabelCurto(ultimoMes)}` : ''));
+
+  _renderParetoClientes(clientes);
+  _renderClientesInativos(inativos, ultimoMes);
+  _renderRankingClientes(clientes);
+}
+
+// Cliente com histórico de compra (faturou em algum mês) mas nada no último mês disponível —
+// prioridade de reativação, ordenado pelo faturamento histórico (maior valor primeiro).
+function _clientesInativos(clientes, meses) {
+  if (!meses.length) return [];
+  const ultimoMes = meses[meses.length-1];
+  return clientes
+    .filter(c => !((c.PorMes?.[ultimoMes]||0) > 0))
+    .map(c => {
+      const mesesComCompra = meses.filter(m => (c.PorMes?.[m]||0) > 0);
+      return { ...c, UltimaCompra: mesesComCompra.length ? mesesComCompra[mesesComCompra.length-1] : '' };
+    })
+    .filter(c => c.UltimaCompra)
+    .sort((a,b) => b.Faturamento - a.Faturamento);
+}
+
+function _renderParetoClientes(clientes) {
+  const ordenados = clientes.slice().sort((a,b) => b.Faturamento - a.Faturamento);
+  const totalFat = ordenados.reduce((s,c) => s + c.Faturamento, 0);
+  let acumulado = 0;
+  const pontos = ordenados.map(c => { acumulado += c.Faturamento; return totalFat>0 ? acumulado/totalFat*100 : 0; });
+  const idx80 = pontos.findIndex(p => p >= 80);
+  const nPara80 = idx80 === -1 ? ordenados.length : idx80+1;
+  document.getElementById('cli-resumo-pareto').innerHTML =
+    `<strong>${fmtNum(nPara80)}</strong> de <strong>${fmtNum(ordenados.length)}</strong> clientes (${ordenados.length ? Math.round(nPara80/ordenados.length*100) : 0}%) respondem por 80% do faturamento.`;
+
+  _ensureChartSetup();
+  if (_cliGraficoPareto) _cliGraficoPareto.destroy();
+  _cliGraficoPareto = new Chart(document.getElementById('cli-grafico-pareto').getContext('2d'), {
+    type: 'line',
+    data: { labels: ordenados.map((c,i) => i+1), datasets: [{
+      label: '% acumulado do faturamento', data: pontos,
+      borderColor: '#1a5c5a', backgroundColor: 'rgba(26,92,90,.15)', fill: true, tension: .15, pointRadius: 0,
+    }] },
+    options: {
+      responsive: true,
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{
+        title: items => 'Top ' + items[0].label + ' cliente(s)',
+        label: c => c.parsed.y.toFixed(1)+'% do faturamento acumulado',
+      } } },
+      scales: { x:{ title:{display:true,text:'Clientes (ranking por faturamento)'} }, y:{ min:0, max:100, ticks:{ callback:v=>v+'%' } } },
+    },
+  });
+}
+
+function _renderClientesInativos(inativos, ultimoMes) {
+  document.getElementById('cli-resumo-inativos').innerHTML =
+    `<strong>${fmtNum(inativos.length)}</strong> cliente(s) com histórico que não compraram em ${ultimoMes ? _mesLabelCurto(ultimoMes) : 'o último mês'} — ordenado por maior faturamento histórico primeiro.`;
+
+  const tbody = document.getElementById('cli-tabela-inativos');
+  if (!inativos.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum cliente inativo — todos com histórico compraram no último mês.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = inativos.slice(0,50).map(c => `<tr>
+    <td>${esc(c.Cliente)}</td>
+    <td style="font-size:11px;color:#4a6a6a">${esc(c.Vendedor||'—')}</td>
+    <td style="font-size:11px;color:#4a6a6a">${esc(c.Vertical||'—')}</td>
+    <td class="mono">${esc(_mesLabelCurto(c.UltimaCompra))}</td>
+    <td class="num">${fmtBrl(c.Faturamento)}</td>
+    <td class="num">${fmtNum(c.Pedidos)}</td>
+  </tr>`).join('');
+}
+
+function _renderRankingClientes(clientes) {
+  const ordenados = clientes.slice().sort((a,b) => b.Faturamento - a.Faturamento).slice(0,100);
+  document.getElementById('cli-tabela-ranking').innerHTML = ordenados.map((c,i) => `<tr>
+    <td>${i+1}</td>
+    <td>${esc(c.Cliente)}</td>
+    <td style="font-size:11px;color:#4a6a6a">${esc(c.Vendedor||'—')}</td>
+    <td style="font-size:11px;color:#4a6a6a">${esc(c.Vertical||'—')}</td>
+    <td class="num">${fmtBrl(c.Faturamento)}</td>
+    <td class="num">${fmtNum(c.Qtde)}</td>
+    <td class="num">${fmtNum(c.Pedidos)}</td>
+    <td class="num">${fmtBrl(c.Pedidos>0 ? c.Faturamento/c.Pedidos : 0)}</td>
+  </tr>`).join('');
 }
 
 // ══════════════════════════════════════════════════════
