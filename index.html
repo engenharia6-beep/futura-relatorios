@@ -1063,17 +1063,11 @@
 
         <div class="vendas-secao">
           <div class="vendas-secao-titulo">Ranking de produtos</div>
-          <div class="vendas-painel-layout">
-            <div class="vendas-painel-tabela table-wrap">
-              <table>
-                <thead><tr><th>#</th><th>Foto</th><th>Código</th><th>Descrição</th><th>Tags</th><th>Faturamento</th><th>Qtde</th><th>Preço Médio</th></tr></thead>
-                <tbody id="v-tabela-produtos"></tbody>
-              </table>
-            </div>
-            <div class="vendas-painel-grafico">
-              <div class="vendas-secao-titulo">Top 10 — Faturamento</div>
-              <canvas id="v-grafico-top-produtos" height="280"></canvas>
-            </div>
+          <div class="table-wrap" style="overflow-x:auto">
+            <table class="tbl-grid">
+              <thead><tr><th>#</th><th>Foto</th><th>Código</th><th>Descrição</th><th>Tags</th><th>Faturamento</th><th>Qtde</th><th>Preço Médio</th></tr></thead>
+              <tbody id="v-tabela-produtos"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -2899,7 +2893,7 @@ function _ensureChartSetup() {
 let _vendasCarregado = false;
 let _todosVendedores = [];
 let _todosProdutos   = [];
-let _graficoMensal, _graficoDiario, _graficoAnual, _graficoTopVend, _graficoEvolVend, _graficoTopProd;
+let _graficoMensal, _graficoDiario, _graficoAnual, _graficoTopVend, _graficoEvolVend;
 
 function fmtBrl(v) { v = Number(v)||0; return 'R$ ' + Math.round(v).toLocaleString('pt-BR'); }
 
@@ -3639,18 +3633,6 @@ function _montarPainelProdutos(produtos) {
       <td class="num">${fmtBrl(p.PrecoMedio||0)}</td>
     </tr>`;
   }).join('');
-
-  const top = produtos.slice(0,10);
-  const cores = top.map(p => p.Grupo==='CLEAR VEICULAR' ? '#1a73e8' : p.Grupo==='VTV CFTV' ? '#ca8a04' : '#16a34a');
-  const ctx = document.getElementById('v-grafico-top-produtos').getContext('2d');
-  if (_graficoTopProd) _graficoTopProd.destroy();
-  _ensureChartSetup();
-  _graficoTopProd = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: top.map(p=>p.Codigo), datasets: [{ label:'Faturamento', data: top.map(p=>p.FatTotal||0), backgroundColor: cores }] },
-    options: { indexAxis:'y', responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>'Faturamento: '+fmtBrl(c.parsed.x) } } },
-      scales:{ x:{ ticks:{ callback:v=>'R$ '+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:0}) } }, y:{ ticks:{ autoSkip:false } } } },
-  });
 
   _montarProdutosPorGrupo(produtos);
 }
