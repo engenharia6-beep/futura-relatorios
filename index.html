@@ -679,17 +679,9 @@
           <label>Produto</label>
           <input type="text" id="ops-produto" placeholder="Código ou descrição">
         </div>
-        <div class="filtro-group">
-          <label>Pedido</label>
-          <input type="text" id="ops-pedido" placeholder="Ex: 22893">
-        </div>
-        <div class="filtro-group">
-          <label>Origem</label>
-          <select id="ops-origem">
-            <option value="">Todos</option>
-            <option value="PA">PA</option>
-            <option value="INSUMO">Insumo</option>
-          </select>
+        <div class="filtro-group" style="min-width:220px">
+          <label>OP</label>
+          <input type="text" id="ops-numero" placeholder="Ex: 9221, 9222, 9223">
         </div>
         <button class="btn btn-primary btn-sm" onclick="gerarOPs()" style="margin-top:20px">🔍 Gerar</button>
       </div>
@@ -2017,15 +2009,12 @@ function _renderOpsRows(ops) {
   const tbody = document.querySelector('#ops-table-body tbody');
   if (!tbody) return;
   tbody.innerHTML = ops.map(o => `<tr>
+    <td>${_fotoFechamentoHtml(o.foto||'', o.descricao||'')}</td>
+    <td class="mono">${esc(o.data||'')}</td>
     <td class="mono">${esc(o.op||'')}</td>
-    <td class="mono">${esc(o.pedido||'')}</td>
     <td class="mono">${esc(o.codigo||'')}</td>
     <td class="desc">${esc(o.descricao||'')}</td>
     <td class="num">${fmtNum(o.qtde)}</td>
-    <td><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(26,92,90,.1);color:#1a5c5a">${esc(o.origem||'—')}</span></td>
-    <td><span class="${o.estado==='PAGO'?'badge-ok':o.estado==='EM_BAIXA'?'badge-b':'badge-critico'}">${esc(o.estado||'')}</span></td>
-    <td style="font-size:11px;color:#4a6a6a">${esc(o.obs||'')}</td>
-    <td style="font-size:11px;color:#4a6a6a">${esc(o.silk||'')}</td>
   </tr>`).join('');
 }
 
@@ -2061,29 +2050,32 @@ async function gerarOPs() {
   setLoading('ops-table-body', 'ops-count', 'Carregando OPs...');
   try {
     const res = await api('listarOPS');
-    let ops = Array.isArray(res) ? res : [];
+    if (!res?.ok) {
+      document.getElementById('ops-table-body').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">${esc(res?.mensagem||'Erro ao carregar OPs.')}</div></div>`;
+      document.getElementById('ops-count').textContent = 'Erro';
+      return;
+    }
+    let ops = res.itens || [];
 
-    const de      = document.getElementById('ops-de').value;
-    const ate     = document.getElementById('ops-ate').value;
-    const produto = document.getElementById('ops-produto').value.trim().toLowerCase();
-    const pedido  = document.getElementById('ops-pedido').value.trim();
-    const origem  = document.getElementById('ops-origem').value;
+    const de       = document.getElementById('ops-de').value;   // yyyy-mm-dd
+    const ate      = document.getElementById('ops-ate').value;  // yyyy-mm-dd
+    const produto  = document.getElementById('ops-produto').value.trim().toLowerCase();
+    const opsBusca = document.getElementById('ops-numero').value.trim();
 
     if (produto) ops = ops.filter(o => o.codigo?.toLowerCase().includes(produto) || o.descricao?.toLowerCase().includes(produto));
-    if (pedido)  ops = ops.filter(o => String(o.pedido||'').includes(pedido));
-    if (origem)  ops = ops.filter(o => o.origem?.toUpperCase() === origem.toUpperCase());
 
-    // Filtro de data: aplica só em OPs PAGAS (têm dataPagamento).
-    // OPs ainda abertas (sem data) sempre aparecem, pois ainda não foram pagas.
+    // Aceita "9221, 9222, 9223" ou "9221 9222 9223" — qualquer uma das OPs listadas
+    if (opsBusca) {
+      const tokens = opsBusca.split(/[\s,]+/).map(t => t.trim()).filter(Boolean);
+      if (tokens.length) ops = ops.filter(o => tokens.includes(String(o.op||'').trim()));
+    }
+
     if (de || ate) {
-      const deISO  = de  ? de  : null;  // yyyy-mm-dd
-      const ateISO = ate ? ate : null;
       ops = ops.filter(o => {
-        if (!o.dataPagamento) return true; // OP aberta — sempre mostra
-        const [dd,mm,yyyy] = o.dataPagamento.split('/');
-        const iso = `${yyyy}-${mm}-${dd}`;
-        if (deISO  && iso < deISO)  return false;
-        if (ateISO && iso > ateISO) return false;
+        const iso = _toISO(o.data);
+        if (!iso) return true; // sem data reconhecível — não filtra fora
+        if (de  && iso < de)  return false;
+        if (ate && iso > ate) return false;
         return true;
       });
     }
@@ -2094,31 +2086,23 @@ async function gerarOPs() {
       document.getElementById('ops-table-body').innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhuma OP encontrada.</div></div>';
       return;
     }
-    _dadosRel['ops'] = ops;
     document.getElementById('ops-table-body').innerHTML = `
       <table>
         <thead><tr>
           <th>Foto</th>
+          ${_thSort('ops','data','Data')}
           ${_thSort('ops','op','OP')}
-          ${_thSort('ops','pedido','Pedido')}
           ${_thSort('ops','codigo','Código')}
           ${_thSort('ops','descricao','Descrição')}
           ${_thSort('ops','qtde','Qtde','num')}
-          ${_thSort('ops','origem','Origem')}
-          ${_thSort('ops','estado','Estado')}
-          <th>OBS</th><th>SILK</th>
         </tr></thead>
         <tbody>${ops.map(o => `<tr>
           <td>${_fotoFechamentoHtml(o.foto||'', o.descricao||'')}</td>
+          <td class="mono">${esc(o.data||'')}</td>
           <td class="mono">${esc(o.op||'')}</td>
-          <td class="mono">${esc(o.pedido||'')}</td>
           <td class="mono">${esc(o.codigo||'')}</td>
           <td class="desc">${esc(o.descricao||'')}</td>
           <td class="num">${fmtNum(o.qtde)}</td>
-          <td><span class="badge-${o.isPA?'entrada':'saida'}" style="background:${o.isPA?'rgba(15,110,86,.12)':'rgba(26,92,90,.12)'};color:${o.isPA?'#0f6e56':'#1a5c5a'}">${esc(o.origem||'—')}</span></td>
-          <td><span class="${o.estado==='PAGO'?'badge-ok':o.estado==='EM_BAIXA'?'badge-b':'badge-critico'}">${esc(o.estado||'')}</span></td>
-          <td style="font-size:11px;color:#4a6a6a">${esc(o.obs||'')}</td>
-          <td style="font-size:11px;color:#4a6a6a">${esc(o.silk||'')}</td>
         </tr>`).join('')}</tbody>
       </table>`;
   } catch(e) {
@@ -2392,7 +2376,7 @@ function exportarExcel(rel) {
     movimentos:        ['data','_origem','tipo','codigo','descricao','qtde','op','usuario','obs'],
     'estoque-insumos': ['codigo','descricao','tipo','estoqueAtual','estoqueMin','endereco'],
     'estoque-pa':      ['codigo','descricao','vertical','familia','estoqueAtual','estoqueMin','endereco'],
-    ops:               ['op','pedido','codigo','descricao','qtde','origem','estado','obs','silk'],
+    ops:               ['data','op','codigo','descricao','qtde'],
     abc:               ['rank','classe','codigo','descricao','_origem','valor','pctAcum'],
     extrato:           ['data','tipo','qtde','saldoApos','op','usuario','obs'],
     compras:           _modoCompras === 'pa'
