@@ -1034,21 +1034,22 @@
         <div id="v-cards-produtos" class="vendas-cards"></div>
 
         <div class="vendas-secao">
-          <div class="vendas-secao-titulo">Produtos por Grupo - Últimos 3 meses</div>
+          <div class="vendas-secao-titulo" id="v-produtos-grupo-titulo">Produtos por Grupo</div>
           <div id="v-tabs-grupo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
             <select id="v-filtro-familia" onchange="_filtrarFamiliaProdutos()" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:13px"></select>
-            <div style="display:flex;gap:4px">
-              <button id="v-ordem-valor" class="btn btn-sm btn-primary" onclick="_ordenarProdutosGrupo('valor')">Ordenar por Valor</button>
-              <button id="v-ordem-qtde" class="btn btn-sm btn-secondary" onclick="_ordenarProdutosGrupo('qtde')">Ordenar por Qtde</button>
-            </div>
+            <label style="font-size:12px;color:var(--text-muted)">Ordenar por
+              <select id="v-ordem-produtos" onchange="_ordenarProdutosGrupo(this.value)" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;margin-left:4px">
+                <option value="valor">Valor</option>
+                <option value="qtde">Qtde</option>
+                <option value="codigo">Código</option>
+                <option value="descricao">Descrição</option>
+              </select>
+            </label>
           </div>
           <div id="v-grupo-resumo" style="font-size:13px;color:var(--text-muted);margin-bottom:10px"></div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>#</th><th>Família</th><th>Foto</th><th>Código</th><th>Descrição</th><th>Qtde</th><th>Valor</th></tr></thead>
-              <tbody id="v-tabela-grupo"></tbody>
-            </table>
+          <div class="table-wrap" style="overflow-x:auto">
+            <div id="v-tabela-grupo-wrap"></div>
           </div>
         </div>
 
@@ -3648,15 +3649,10 @@ function _montarPainelProdutos(produtos) {
 
 // Produtos agrupados por GRUPO (ex: "Câmeras 776", "Gravadores 1194", "Acessórios") —
 // abas para trocar de grupo; dentro do grupo, filtro por Família e agrupamento com
-// subtotal por família. Valores somados só dos últimos 3 meses disponíveis (p.Meses).
+// subtotal por família. Mostra Qtde/Valor de cada mês disponível + coluna de Total.
 let _grupoAtivoProdutos   = null;
 let _familiaAtivaProdutos = '';
-let _ordemProdutosGrupo   = 'valor'; // 'valor' | 'qtde'
-
-function _somaUltimosMeses(p, campo, n) {
-  const meses = (p.Meses||[]).slice(-n);
-  return meses.reduce((s,m) => s + (p[campo]?.[m]||0), 0);
-}
+let _ordemProdutosGrupo   = 'valor'; // 'valor' | 'qtde' | 'codigo' | 'descricao'
 
 function _montarProdutosPorGrupo(produtos) {
   const grupos = [...new Set(produtos.map(p => p.Grupo || '(Sem grupo)'))];
@@ -3692,27 +3688,33 @@ function _filtrarFamiliaProdutos() {
 
 function _ordenarProdutosGrupo(criterio) {
   _ordemProdutosGrupo = criterio;
-  document.getElementById('v-ordem-valor').className = 'btn btn-sm ' + (criterio==='valor' ? 'btn-primary' : 'btn-secondary');
-  document.getElementById('v-ordem-qtde').className  = 'btn btn-sm ' + (criterio==='qtde'  ? 'btn-primary' : 'btn-secondary');
   _renderGrupoProdutos(_todosProdutos);
 }
+
+// "2026/04" -> "04/2026"
+function _mesLabelCurto(m) { const [y,mm] = String(m).split('/'); return mm + '/' + y; }
 
 function _renderGrupoProdutos(produtos) {
   let lista = produtos.filter(p => (p.Grupo||'(Sem grupo)') === _grupoAtivoProdutos);
   if (_familiaAtivaProdutos) lista = lista.filter(p => (p.Familia||'(Sem família)') === _familiaAtivaProdutos);
 
+  const meses = produtos[0]?.Meses || [];
+  document.getElementById('v-produtos-grupo-titulo').textContent = meses.length
+    ? `Produtos por Grupo — ${_mesLabelCurto(meses[0])} a ${_mesLabelCurto(meses[meses.length-1])}`
+    : 'Produtos por Grupo';
+
   lista = lista.map(p => ({ ...p,
-    _soma3mQtde:  _somaUltimosMeses(p, 'FatQtde', 3),
-    _soma3mValor: _somaUltimosMeses(p, 'FatValor', 3),
+    _totalQtde:  meses.reduce((s,m) => s + (p.FatQtde?.[m]||0), 0),
+    _totalValor: meses.reduce((s,m) => s + (p.FatValor?.[m]||0), 0),
   }));
 
-  const totalGrupoValor = lista.reduce((s,p) => s + p._soma3mValor, 0);
-  const totalGrupoQtde  = lista.reduce((s,p) => s + p._soma3mQtde, 0);
+  const totalGrupoValor = lista.reduce((s,p) => s + p._totalValor, 0);
+  const totalGrupoQtde  = lista.reduce((s,p) => s + p._totalQtde, 0);
   document.getElementById('v-grupo-resumo').innerHTML =
     `<strong>${fmtNum(lista.length)}</strong> produtos · Qtde: <strong>${fmtNum(totalGrupoQtde)}</strong> · Faturamento do grupo: <strong>${fmtBrl(totalGrupoValor)}</strong>`;
 
-  const tbody = document.getElementById('v-tabela-grupo');
-  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum produto neste grupo.</td></tr>'; return; }
+  const wrap = document.getElementById('v-tabela-grupo-wrap');
+  if (!lista.length) { wrap.innerHTML = '<div class="empty"><div class="empty-text">Nenhum produto neste grupo.</div></div>'; return; }
 
   const porFamilia = {};
   lista.forEach(p => {
@@ -3720,41 +3722,64 @@ function _renderGrupoProdutos(produtos) {
     if (!porFamilia[fam]) porFamilia[fam] = [];
     porFamilia[fam].push(p);
   });
-  const chaveOrdem = _ordemProdutosGrupo === 'qtde' ? '_soma3mQtde' : '_soma3mValor';
   const familiasOrdenadas = Object.keys(porFamilia).sort((a,b) => {
-    const totalA = porFamilia[a].reduce((s,p)=>s+p[chaveOrdem],0);
-    const totalB = porFamilia[b].reduce((s,p)=>s+p[chaveOrdem],0);
+    const totalA = porFamilia[a].reduce((s,p)=>s+p._totalValor,0);
+    const totalB = porFamilia[b].reduce((s,p)=>s+p._totalValor,0);
     return totalB - totalA;
   });
+  const cmpProduto = (a,b) => {
+    if (_ordemProdutosGrupo === 'qtde')      return b._totalQtde - a._totalQtde;
+    if (_ordemProdutosGrupo === 'codigo')    return String(a.Codigo||'').localeCompare(String(b.Codigo||''), 'pt-BR');
+    if (_ordemProdutosGrupo === 'descricao') return String(a.Descricao||'').localeCompare(String(b.Descricao||''), 'pt-BR');
+    return b._totalValor - a._totalValor; // 'valor'
+  };
 
-  let rank = 0;
-  let html = '';
+  const thead = `<thead><tr>
+      <th rowspan="2">Família</th>
+      <th rowspan="2">Foto</th>
+      <th rowspan="2">Código</th>
+      <th rowspan="2">Descrição</th>
+      ${meses.map(m => `<th colspan="2">${esc(_mesLabelCurto(m))}</th>`).join('')}
+      <th colspan="2">Total</th>
+    </tr><tr>
+      ${meses.map(() => `<th>Qtde</th><th>Valor</th>`).join('')}
+      <th>Qtde</th><th>Valor</th>
+    </tr></thead>`;
+
+  let corpo = '';
   familiasOrdenadas.forEach(fam => {
-    const produtosFam = porFamilia[fam].slice().sort((a,b) => b[chaveOrdem] - a[chaveOrdem]);
+    const produtosFam = porFamilia[fam].slice().sort(cmpProduto);
     produtosFam.forEach(p => {
-      rank++;
       const fotoHtml = p.Foto
         ? `<img class="foto-produto-vendas foto-zoom" src="${esc(p.Foto)}" data-src="${esc(p.Foto)}" data-desc="${esc(p.Descricao||'')}" loading="lazy" decoding="async" onclick="abrirLightboxEl(this)" onerror="this.outerHTML='<div class=&quot;foto-placeholder-vendas&quot;>📷</div>'" title="Clique para ampliar">`
         : '<div class="foto-placeholder-vendas">📷</div>';
-      html += `<tr>
-        <td>${rank}</td>
+      const celulasMeses = meses.map(m => `<td class="num">${fmtNum(p.FatQtde?.[m]||0)}</td><td class="num">${fmtBrl(p.FatValor?.[m]||0)}</td>`).join('');
+      corpo += `<tr>
         <td style="font-size:11px;color:#4a6a6a">${esc(fam)}</td>
         <td>${fotoHtml}</td>
-        <td class="mono">${esc(p.Codigo)}</td>
-        <td>${esc(p.Descricao||'')}</td>
-        <td class="num">${fmtNum(p._soma3mQtde)}</td>
-        <td class="num">${fmtBrl(p._soma3mValor)}</td>
+        <td class="mono col-sm">${esc(p.Codigo)}</td>
+        <td class="desc">${esc(p.Descricao||'')}</td>
+        ${celulasMeses}
+        <td class="num" style="font-weight:700">${fmtNum(p._totalQtde)}</td>
+        <td class="num" style="font-weight:700">${fmtBrl(p._totalValor)}</td>
       </tr>`;
     });
-    const subQtde  = produtosFam.reduce((s,p)=>s+p._soma3mQtde,0);
-    const subValor = produtosFam.reduce((s,p)=>s+p._soma3mValor,0);
-    html += `<tr style="background:#f0f6f6;font-weight:700">
-      <td colspan="5" style="text-align:right">Total ${esc(fam)}</td>
+    const celulasSubtotal = meses.map(m => {
+      const q = produtosFam.reduce((s,p)=>s+(p.FatQtde?.[m]||0),0);
+      const v = produtosFam.reduce((s,p)=>s+(p.FatValor?.[m]||0),0);
+      return `<td class="num">${fmtNum(q)}</td><td class="num">${fmtBrl(v)}</td>`;
+    }).join('');
+    const subQtde  = produtosFam.reduce((s,p)=>s+p._totalQtde,0);
+    const subValor = produtosFam.reduce((s,p)=>s+p._totalValor,0);
+    corpo += `<tr style="background:#f0f6f6;font-weight:700">
+      <td colspan="4" style="text-align:right">Total ${esc(fam)}</td>
+      ${celulasSubtotal}
       <td class="num">${fmtNum(subQtde)}</td>
       <td class="num">${fmtBrl(subValor)}</td>
     </tr>`;
   });
-  tbody.innerHTML = html;
+
+  wrap.innerHTML = `<table class="tbl-grid">${thead}<tbody>${corpo}</tbody></table>`;
 }
 
 // ══════════════════════════════════════════════════════
