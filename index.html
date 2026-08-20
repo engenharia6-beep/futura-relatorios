@@ -1038,12 +1038,20 @@
           <div id="v-tabs-grupo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
             <select id="v-filtro-familia" onchange="_filtrarFamiliaProdutos()" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:13px"></select>
-            <label style="font-size:12px;color:var(--text-muted)">Ordenar por
-              <select id="v-ordem-produtos" onchange="_ordenarProdutosGrupo(this.value)" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;margin-left:4px">
+            <label style="font-size:12px;color:var(--text-muted)">Ordenar por 1º
+              <select id="v-ordem-produtos-1" onchange="_ordenarProdutosGrupo()" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;margin-left:4px">
                 <option value="valor">Valor</option>
                 <option value="qtde">Qtde</option>
                 <option value="codigo">Código</option>
                 <option value="descricao">Descrição</option>
+              </select>
+            </label>
+            <label style="font-size:12px;color:var(--text-muted)">2º
+              <select id="v-ordem-produtos-2" onchange="_ordenarProdutosGrupo()" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;margin-left:4px">
+                <option value="descricao">Descrição</option>
+                <option value="valor">Valor</option>
+                <option value="qtde">Qtde</option>
+                <option value="codigo">Código</option>
               </select>
             </label>
           </div>
@@ -3652,7 +3660,6 @@ function _montarPainelProdutos(produtos) {
 // subtotal por família. Mostra Qtde/Valor de cada mês disponível + coluna de Total.
 let _grupoAtivoProdutos   = null;
 let _familiaAtivaProdutos = '';
-let _ordemProdutosGrupo   = 'valor'; // 'valor' | 'qtde' | 'codigo' | 'descricao'
 
 function _montarProdutosPorGrupo(produtos) {
   const grupos = [...new Set(produtos.map(p => p.Grupo || '(Sem grupo)'))];
@@ -3686,9 +3693,15 @@ function _filtrarFamiliaProdutos() {
   _renderGrupoProdutos(_todosProdutos);
 }
 
-function _ordenarProdutosGrupo(criterio) {
-  _ordemProdutosGrupo = criterio;
+function _ordenarProdutosGrupo() {
   _renderGrupoProdutos(_todosProdutos);
+}
+
+function _cmpProdutoPorCriterio(a, b, criterio) {
+  if (criterio === 'qtde')      return b._totalQtde - a._totalQtde;
+  if (criterio === 'codigo')    return String(a.Codigo||'').localeCompare(String(b.Codigo||''), 'pt-BR');
+  if (criterio === 'descricao') return String(a.Descricao||'').localeCompare(String(b.Descricao||''), 'pt-BR');
+  return b._totalValor - a._totalValor; // 'valor'
 }
 
 // "2026/04" -> "04/2026"
@@ -3727,12 +3740,9 @@ function _renderGrupoProdutos(produtos) {
     const totalB = porFamilia[b].reduce((s,p)=>s+p._totalValor,0);
     return totalB - totalA;
   });
-  const cmpProduto = (a,b) => {
-    if (_ordemProdutosGrupo === 'qtde')      return b._totalQtde - a._totalQtde;
-    if (_ordemProdutosGrupo === 'codigo')    return String(a.Codigo||'').localeCompare(String(b.Codigo||''), 'pt-BR');
-    if (_ordemProdutosGrupo === 'descricao') return String(a.Descricao||'').localeCompare(String(b.Descricao||''), 'pt-BR');
-    return b._totalValor - a._totalValor; // 'valor'
-  };
+  const criterio1 = document.getElementById('v-ordem-produtos-1').value || 'valor';
+  const criterio2 = document.getElementById('v-ordem-produtos-2').value || 'descricao';
+  const cmpProduto = (a,b) => _cmpProdutoPorCriterio(a,b,criterio1) || _cmpProdutoPorCriterio(a,b,criterio2);
 
   const thead = `<thead><tr>
       <th rowspan="2">Família</th>
