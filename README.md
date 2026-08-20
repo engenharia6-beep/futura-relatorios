@@ -113,6 +113,7 @@ Mostra a quantidade produzida por dia a partir do log `Producao_diaria` (planilh
 | `listarCadastroPA` | Produtos Acabados | Não |
 | `listarMovimentos` | Movimentos de Insumos | Não |
 | `listarMovimentosPA` | Movimentos de PA | Não |
+| `listarOPS` | OPs por período (aba `Lista_de_Ops`) | Não |
 | `getCenarioMomento` | Dados em tempo real do Acompanhamento Fabril | Não |
 | `getVendasSegmento` | Dados do relatório Vendas por Segmento | Não |
 | `listarBOMsDisponiveis` | Lista de PAs disponíveis (estrutura BOM), ordenada por Grupo/Ordem_ | Não |
@@ -190,7 +191,7 @@ Além da planilha principal, o backend lê/consome estas planilhas separadas (ca
 | Vendas | `SPREADSHEET_ID_VENDAS` | `getDashboardVendas` |
 | Cenário de Momento | `SPREADSHEET_ID_CENARIO` | `getCenarioMomento` |
 | Vendas por Segmento | `SPREADSHEET_ID_VENDAS_SEG` (aba `F5`) | `getVendasSegmento` |
-| Produção | `SPREADSHEET_ID_PRODUCAO` (aba `Producao_diaria`) | `listarFiltrosProducao`, `listarProducaoDiaria` |
+| Produção | `SPREADSHEET_ID_PRODUCAO` — abas `Producao_diaria` e `Lista_de_Ops` | `listarFiltrosProducao`, `listarProducaoDiaria`, `listarOPS` |
 
 #### Aba Producao_diaria — log de produção (planilha "Produção", não a principal)
 
@@ -206,6 +207,17 @@ Além da planilha principal, o backend lê/consome estas planilhas separadas (ca
 | `Mês/Ano` | Texto tipo `"Agosto/2026"` — usado para popular o filtro e para filtrar o período |
 | `Descrição` | Descrição do produto |
 | `grupo` | Categoria — vira o resumo por grupo do relatório |
+
+#### Aba Lista_de_Ops — OPs por período (mesma planilha "Produção")
+
+| Coluna | Descrição |
+|--------|-----------|
+| `DATA` | Data da OP |
+| `OP` | Número da OP — filtro no app aceita várias, separadas por vírgula ou espaço (ex: `9221, 9222, 9223`) |
+| `CÓDIGO` | Código do produto |
+| `QTDE` | Quantidade |
+| `DESCRIÇÃO` | Descrição do produto |
+| `FOTO` | Foto do produto (fallback: junção por código com Cadastro/Cadastro_PA) |
 
 ---
 
