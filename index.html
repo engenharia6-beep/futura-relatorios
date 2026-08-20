@@ -1034,12 +1034,19 @@
         <div id="v-cards-produtos" class="vendas-cards"></div>
 
         <div class="vendas-secao">
-          <div class="vendas-secao-titulo">Produtos por grupo</div>
+          <div class="vendas-secao-titulo">Produtos por Grupo - Últimos 3 meses</div>
           <div id="v-tabs-grupo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+            <select id="v-filtro-familia" onchange="_filtrarFamiliaProdutos()" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:13px"></select>
+            <div style="display:flex;gap:4px">
+              <button id="v-ordem-valor" class="btn btn-sm btn-primary" onclick="_ordenarProdutosGrupo('valor')">Ordenar por Valor</button>
+              <button id="v-ordem-qtde" class="btn btn-sm btn-secondary" onclick="_ordenarProdutosGrupo('qtde')">Ordenar por Qtde</button>
+            </div>
+          </div>
           <div id="v-grupo-resumo" style="font-size:13px;color:var(--text-muted);margin-bottom:10px"></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>#</th><th>Código</th><th>Descrição</th><th>Faturamento</th></tr></thead>
+              <thead><tr><th>#</th><th>Família</th><th>Foto</th><th>Código</th><th>Descrição</th><th>Qtde</th><th>Valor</th></tr></thead>
               <tbody id="v-tabela-grupo"></tbody>
             </table>
           </div>
@@ -3640,8 +3647,16 @@ function _montarPainelProdutos(produtos) {
 }
 
 // Produtos agrupados por GRUPO (ex: "Câmeras 776", "Gravadores 1194", "Acessórios") —
-// abas para trocar de grupo, tabela simplificada (só código e descrição, conforme pedido).
-let _grupoAtivoProdutos = null;
+// abas para trocar de grupo; dentro do grupo, filtro por Família e agrupamento com
+// subtotal por família. Valores somados só dos últimos 3 meses disponíveis (p.Meses).
+let _grupoAtivoProdutos   = null;
+let _familiaAtivaProdutos = '';
+let _ordemProdutosGrupo   = 'valor'; // 'valor' | 'qtde'
+
+function _somaUltimosMeses(p, campo, n) {
+  const meses = (p.Meses||[]).slice(-n);
+  return meses.reduce((s,m) => s + (p[campo]?.[m]||0), 0);
+}
 
 function _montarProdutosPorGrupo(produtos) {
   const grupos = [...new Set(produtos.map(p => p.Grupo || '(Sem grupo)'))];
@@ -3655,29 +3670,91 @@ function _montarProdutosPorGrupo(produtos) {
     return `<button class="v-tab-grupo ${ativo}" onclick="_trocarGrupoProdutos('${esc(g)}')">${esc(g)} <span style="opacity:.6">(${qtd})</span></button>`;
   }).join('');
 
+  const familias = [...new Set(produtos.filter(p => (p.Grupo||'(Sem grupo)') === _grupoAtivoProdutos).map(p => p.Familia || '(Sem família)'))]
+    .sort((a,b) => a.localeCompare(b,'pt-BR'));
+  if (_familiaAtivaProdutos && !familias.includes(_familiaAtivaProdutos)) _familiaAtivaProdutos = '';
+  document.getElementById('v-filtro-familia').innerHTML = '<option value="">Todas as famílias</option>' +
+    familias.map(f => `<option value="${esc(f)}" ${f===_familiaAtivaProdutos?'selected':''}>${esc(f)}</option>`).join('');
+
   _renderGrupoProdutos(produtos);
 }
 
 function _trocarGrupoProdutos(grupo) {
   _grupoAtivoProdutos = grupo;
+  _familiaAtivaProdutos = '';
   _montarProdutosPorGrupo(_todosProdutos);
 }
 
-function _renderGrupoProdutos(produtos) {
-  const lista = produtos.filter(p => (p.Grupo||'(Sem grupo)') === _grupoAtivoProdutos);
-  const totalGrupo = lista.reduce((s,p) => s + (p.FatTotal||0), 0);
+function _filtrarFamiliaProdutos() {
+  _familiaAtivaProdutos = document.getElementById('v-filtro-familia').value;
+  _renderGrupoProdutos(_todosProdutos);
+}
 
+function _ordenarProdutosGrupo(criterio) {
+  _ordemProdutosGrupo = criterio;
+  document.getElementById('v-ordem-valor').className = 'btn btn-sm ' + (criterio==='valor' ? 'btn-primary' : 'btn-secondary');
+  document.getElementById('v-ordem-qtde').className  = 'btn btn-sm ' + (criterio==='qtde'  ? 'btn-primary' : 'btn-secondary');
+  _renderGrupoProdutos(_todosProdutos);
+}
+
+function _renderGrupoProdutos(produtos) {
+  let lista = produtos.filter(p => (p.Grupo||'(Sem grupo)') === _grupoAtivoProdutos);
+  if (_familiaAtivaProdutos) lista = lista.filter(p => (p.Familia||'(Sem família)') === _familiaAtivaProdutos);
+
+  lista = lista.map(p => ({ ...p,
+    _soma3mQtde:  _somaUltimosMeses(p, 'FatQtde', 3),
+    _soma3mValor: _somaUltimosMeses(p, 'FatValor', 3),
+  }));
+
+  const totalGrupoValor = lista.reduce((s,p) => s + p._soma3mValor, 0);
+  const totalGrupoQtde  = lista.reduce((s,p) => s + p._soma3mQtde, 0);
   document.getElementById('v-grupo-resumo').innerHTML =
-    `<strong>${fmtNum(lista.length)}</strong> produtos · Faturamento do grupo: <strong>${fmtBrl(totalGrupo)}</strong>`;
+    `<strong>${fmtNum(lista.length)}</strong> produtos · Qtde: <strong>${fmtNum(totalGrupoQtde)}</strong> · Faturamento do grupo: <strong>${fmtBrl(totalGrupoValor)}</strong>`;
 
   const tbody = document.getElementById('v-tabela-grupo');
-  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum produto neste grupo.</td></tr>'; return; }
-  tbody.innerHTML = lista.map((p, idx) => `<tr>
-    <td>${idx+1}</td>
-    <td class="mono">${esc(p.Codigo)}</td>
-    <td>${esc(p.Descricao||'')}</td>
-    <td class="num">${fmtBrl(p.FatTotal||0)}</td>
-  </tr>`).join('');
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum produto neste grupo.</td></tr>'; return; }
+
+  const porFamilia = {};
+  lista.forEach(p => {
+    const fam = p.Familia || '(Sem família)';
+    if (!porFamilia[fam]) porFamilia[fam] = [];
+    porFamilia[fam].push(p);
+  });
+  const chaveOrdem = _ordemProdutosGrupo === 'qtde' ? '_soma3mQtde' : '_soma3mValor';
+  const familiasOrdenadas = Object.keys(porFamilia).sort((a,b) => {
+    const totalA = porFamilia[a].reduce((s,p)=>s+p[chaveOrdem],0);
+    const totalB = porFamilia[b].reduce((s,p)=>s+p[chaveOrdem],0);
+    return totalB - totalA;
+  });
+
+  let rank = 0;
+  let html = '';
+  familiasOrdenadas.forEach(fam => {
+    const produtosFam = porFamilia[fam].slice().sort((a,b) => b[chaveOrdem] - a[chaveOrdem]);
+    produtosFam.forEach(p => {
+      rank++;
+      const fotoHtml = p.Foto
+        ? `<img class="foto-produto-vendas foto-zoom" src="${esc(p.Foto)}" data-src="${esc(p.Foto)}" data-desc="${esc(p.Descricao||'')}" loading="lazy" decoding="async" onclick="abrirLightboxEl(this)" onerror="this.outerHTML='<div class=&quot;foto-placeholder-vendas&quot;>📷</div>'" title="Clique para ampliar">`
+        : '<div class="foto-placeholder-vendas">📷</div>';
+      html += `<tr>
+        <td>${rank}</td>
+        <td style="font-size:11px;color:#4a6a6a">${esc(fam)}</td>
+        <td>${fotoHtml}</td>
+        <td class="mono">${esc(p.Codigo)}</td>
+        <td>${esc(p.Descricao||'')}</td>
+        <td class="num">${fmtNum(p._soma3mQtde)}</td>
+        <td class="num">${fmtBrl(p._soma3mValor)}</td>
+      </tr>`;
+    });
+    const subQtde  = produtosFam.reduce((s,p)=>s+p._soma3mQtde,0);
+    const subValor = produtosFam.reduce((s,p)=>s+p._soma3mValor,0);
+    html += `<tr style="background:#f0f6f6;font-weight:700">
+      <td colspan="5" style="text-align:right">Total ${esc(fam)}</td>
+      <td class="num">${fmtNum(subQtde)}</td>
+      <td class="num">${fmtBrl(subValor)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
 }
 
 // ══════════════════════════════════════════════════════
