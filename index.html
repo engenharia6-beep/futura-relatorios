@@ -972,6 +972,7 @@
         <button id="vtab-dashboard" class="btn btn-primary btn-sm" onclick="setSubAbaVendas('dashboard')" style="flex:1">📊 Dashboard</button>
         <button id="vtab-vendedores" class="btn btn-secondary btn-sm" onclick="setSubAbaVendas('vendedores')" style="flex:1">👤 Vendedores</button>
         <button id="vtab-produtos" class="btn btn-secondary btn-sm" onclick="setSubAbaVendas('produtos')" style="flex:1">📦 Produtos</button>
+        <button id="vtab-analises" class="btn btn-secondary btn-sm" onclick="setSubAbaVendas('analises')" style="flex:1">📈 Análises</button>
       </div>
 
       <div id="vendas-loading" class="empty"><div class="empty-icon">💹</div><div class="empty-text">Carregando dados de vendas...</div></div>
@@ -1069,6 +1070,37 @@
               <tbody id="v-tabela-produtos"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- SUB-ABA: ANÁLISES -->
+      <div id="vendas-sub-analises" class="vendas-sub" style="display:none">
+        <div id="an-tabs-grupo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Evolução mensal por Grupo</div>
+          <canvas id="an-grafico-evolucao-grupo" height="90"></canvas>
+        </div>
+
+        <div class="vendas-painel-layout">
+          <div class="vendas-secao" style="flex:1;min-width:340px">
+            <div class="vendas-secao-titulo">Mix de Faturamento por Família</div>
+            <canvas id="an-grafico-mix-familia" height="260"></canvas>
+          </div>
+          <div class="vendas-secao" style="flex:1;min-width:340px">
+            <div class="vendas-secao-titulo">Top 15 Produtos por Faturamento</div>
+            <canvas id="an-grafico-top-produtos" height="260"></canvas>
+          </div>
+        </div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Variação % — último mês vs. anterior (por Família)</div>
+          <canvas id="an-grafico-variacao" height="100"></canvas>
+        </div>
+
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Ticket Médio por Família ao longo do tempo</div>
+          <canvas id="an-grafico-ticket-medio" height="100"></canvas>
         </div>
       </div>
     </div>
@@ -2913,7 +2945,7 @@ function _sortMeses(arr) {
 }
 
 function setSubAbaVendas(nome) {
-  ['dashboard','vendedores','produtos'].forEach(n => {
+  ['dashboard','vendedores','produtos','analises'].forEach(n => {
     document.getElementById('vendas-sub-'+n).style.display = n===nome ? 'block' : 'none';
     document.getElementById('vtab-'+n).className = 'btn btn-sm ' + (n===nome ? 'btn-primary' : 'btn-secondary');
   });
@@ -3302,6 +3334,7 @@ async function carregarVendas() {
     _montarGraficoAnual(res.compAnual || []);
     _montarPainelVendedores(_todosVendedores);
     _montarPainelProdutos(_todosProdutos);
+    _montarAnalisesVendas(_todosProdutos);
   } catch(e) {
     document.getElementById('vendas-loading').style.display = 'block';
     document.getElementById('vendas-loading').innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div>`;
@@ -3772,6 +3805,131 @@ function _renderGrupoProdutos(produtos) {
   });
 
   wrap.innerHTML = `<table class="tbl-grid">${thead}<tbody>${corpo}</tbody></table>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  ANÁLISES DE VENDAS — 5 gráficos pra apresentação
+// ══════════════════════════════════════════════════════
+let _grupoAtivoAnalises = '';
+let _anGraficoEvolucao, _anGraficoMix, _anGraficoTop, _anGraficoVariacao, _anGraficoTicket;
+const _CORES_ANALISES = ['#1a5c5a','#1a73e8','#ca8a04','#dc2626','#7c3aed','#16a34a','#0d9488','#db2777','#4b5563','#0891b2'];
+
+function _montarAnalisesVendas(produtos) {
+  const grupos = [...new Set(produtos.map(p => p.Grupo || '(Sem grupo)'))];
+  const tabsEl = document.getElementById('an-tabs-grupo');
+  tabsEl.innerHTML = `<button class="v-tab-grupo ${_grupoAtivoAnalises===''?'active':''}" onclick="_trocarGrupoAnalises('')">Todos</button>` +
+    grupos.map(g => `<button class="v-tab-grupo ${g===_grupoAtivoAnalises?'active':''}" onclick="_trocarGrupoAnalises('${esc(g)}')">${esc(g)}</button>`).join('');
+  _renderAnalisesVendas(produtos);
+}
+
+function _trocarGrupoAnalises(grupo) {
+  _grupoAtivoAnalises = grupo;
+  _montarAnalisesVendas(_todosProdutos);
+}
+
+function _renderAnalisesVendas(produtos) {
+  const meses = produtos[0]?.Meses || [];
+  const escopo = _grupoAtivoAnalises ? produtos.filter(p => (p.Grupo||'(Sem grupo)') === _grupoAtivoAnalises) : produtos;
+
+  // 1) Evolução mensal por Grupo — sempre todos os grupos, não filtra (é o gráfico de comparação)
+  const grupos = [...new Set(produtos.map(p => p.Grupo || '(Sem grupo)'))];
+  _ensureChartSetup();
+  if (_anGraficoEvolucao) _anGraficoEvolucao.destroy();
+  _anGraficoEvolucao = new Chart(document.getElementById('an-grafico-evolucao-grupo').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: meses.map(_mesLabelCurto),
+      datasets: grupos.map((g,i) => ({
+        label: g,
+        data: meses.map(m => produtos.filter(p => (p.Grupo||'(Sem grupo)')===g).reduce((s,p)=>s+(p.FatValor?.[m]||0),0)),
+        borderColor: _CORES_ANALISES[i%_CORES_ANALISES.length],
+        backgroundColor: _CORES_ANALISES[i%_CORES_ANALISES.length],
+        tension: .25,
+      })),
+    },
+    options: { responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } } },
+      scales:{ y:{ ticks:{ callback:v=>fmtBrl(v) } } } },
+  });
+
+  // 2) Mix de Faturamento por Família (rosca) — respeita o grupo selecionado
+  const porFamiliaMix = {};
+  escopo.forEach(p => { const f = p.Familia||'(Sem família)'; porFamiliaMix[f] = (porFamiliaMix[f]||0) + (p.FatTotal||0); });
+  const mixEntradas = Object.entries(porFamiliaMix).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if (_anGraficoMix) _anGraficoMix.destroy();
+  _anGraficoMix = new Chart(document.getElementById('an-grafico-mix-familia').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: mixEntradas.map(e=>e[0]), datasets: [{ data: mixEntradas.map(e=>e[1]), backgroundColor: _CORES_ANALISES }] },
+    options: { responsive:true, plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:10} } },
+      tooltip:{ callbacks:{ label:c=>c.label+': '+fmtBrl(c.parsed) } } } },
+  });
+
+  // 3) Top 15 produtos por Faturamento — respeita o grupo selecionado
+  const topProdutos = escopo.slice().sort((a,b)=>(b.FatTotal||0)-(a.FatTotal||0)).slice(0,15);
+  if (_anGraficoTop) _anGraficoTop.destroy();
+  _anGraficoTop = new Chart(document.getElementById('an-grafico-top-produtos').getContext('2d'), {
+    type: 'bar',
+    data: { labels: topProdutos.map(p=>p.Codigo), datasets: [{ label:'Faturamento', data: topProdutos.map(p=>p.FatTotal||0), backgroundColor: '#1a5c5a' }] },
+    options: { indexAxis:'y', responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>fmtBrl(c.parsed.x) } } },
+      scales:{ x:{ ticks:{ callback:v=>fmtBrl(v) } }, y:{ ticks:{ autoSkip:false } } } },
+  });
+
+  // 4) Variação % do último mês vs. o anterior, por Família — respeita o grupo selecionado
+  let variacaoLabels = [], variacaoData = [], variacaoCores = [];
+  if (meses.length >= 2) {
+    const mesAtual = meses[meses.length-1], mesAnterior = meses[meses.length-2];
+    const porFamiliaVar = {};
+    escopo.forEach(p => {
+      const f = p.Familia||'(Sem família)';
+      if (!porFamiliaVar[f]) porFamiliaVar[f] = { atual:0, anterior:0 };
+      porFamiliaVar[f].atual    += p.FatValor?.[mesAtual]    || 0;
+      porFamiliaVar[f].anterior += p.FatValor?.[mesAnterior] || 0;
+    });
+    const variacaoEntradas = Object.entries(porFamiliaVar)
+      .filter(([,v]) => v.atual > 0 || v.anterior > 0)
+      .map(([f,v]) => ({ familia:f, variacao: v.anterior>0 ? (v.atual-v.anterior)/v.anterior*100 : 100 }))
+      .sort((a,b) => b.variacao - a.variacao)
+      .slice(0,15);
+    variacaoLabels = variacaoEntradas.map(e=>e.familia);
+    variacaoData   = variacaoEntradas.map(e=>Math.round(e.variacao*10)/10);
+    variacaoCores  = variacaoEntradas.map(e => e.variacao >= 0 ? '#16a34a' : '#dc2626');
+  }
+  if (_anGraficoVariacao) _anGraficoVariacao.destroy();
+  _anGraficoVariacao = new Chart(document.getElementById('an-grafico-variacao').getContext('2d'), {
+    type: 'bar',
+    data: { labels: variacaoLabels, datasets: [{ label:'Variação %', data: variacaoData, backgroundColor: variacaoCores }] },
+    options: { responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>c.parsed.y+'%' } } },
+      scales:{ y:{ ticks:{ callback:v=>v+'%' } } } },
+  });
+
+  // 5) Ticket Médio por Família ao longo do tempo — respeita o grupo selecionado, limita a 8 famílias (maior volume)
+  const familiasTicket = [...new Set(escopo.map(p => p.Familia||'(Sem família)'))]
+    .map(f => ({ familia:f, total: escopo.filter(p=>(p.Familia||'(Sem família)')===f).reduce((s,p)=>s+(p.FatTotal||0),0) }))
+    .sort((a,b)=>b.total-a.total)
+    .slice(0,8)
+    .map(e=>e.familia);
+  if (_anGraficoTicket) _anGraficoTicket.destroy();
+  _anGraficoTicket = new Chart(document.getElementById('an-grafico-ticket-medio').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: meses.map(_mesLabelCurto),
+      datasets: familiasTicket.map((f,i) => {
+        const produtosFam = escopo.filter(p => (p.Familia||'(Sem família)')===f);
+        return {
+          label: f,
+          data: meses.map(m => {
+            const valor = produtosFam.reduce((s,p)=>s+(p.FatValor?.[m]||0),0);
+            const qtde  = produtosFam.reduce((s,p)=>s+(p.FatQtde?.[m]||0),0);
+            return qtde>0 ? Math.round(valor/qtde) : 0;
+          }),
+          borderColor: _CORES_ANALISES[i%_CORES_ANALISES.length],
+          backgroundColor: _CORES_ANALISES[i%_CORES_ANALISES.length],
+          tension: .25,
+        };
+      }),
+    },
+    options: { responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=>c.dataset.label+': '+fmtBrl(c.parsed.y) } } },
+      scales:{ y:{ ticks:{ callback:v=>fmtBrl(v) } } } },
+  });
 }
 
 // ══════════════════════════════════════════════════════
