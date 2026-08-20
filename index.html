@@ -4017,27 +4017,45 @@ function _renderParetoClientes(clientes) {
   const ordenados = clientes.slice().sort((a,b) => b.Faturamento - a.Faturamento);
   const totalFat = ordenados.reduce((s,c) => s + c.Faturamento, 0);
   let acumulado = 0;
-  const pontos = ordenados.map(c => { acumulado += c.Faturamento; return totalFat>0 ? acumulado/totalFat*100 : 0; });
-  const idx80 = pontos.findIndex(p => p >= 80);
-  const nPara80 = idx80 === -1 ? ordenados.length : idx80+1;
+  const comPercentual = ordenados.map(c => {
+    acumulado += c.Faturamento;
+    return { ...c, percAcumulado: totalFat>0 ? acumulado/totalFat*100 : 0 };
+  });
+  const idx90 = comPercentual.findIndex(c => c.percAcumulado >= 90);
+  const nPara90 = idx90 === -1 ? comPercentual.length : idx90+1;
+  const LIMITE_VISUAL = 40; // teto de barras na tela, mesmo que precise de mais clientes pra fechar 90%
+  const nExibidos = Math.min(nPara90, LIMITE_VISUAL);
+  const subset = comPercentual.slice(0, nExibidos);
+
   document.getElementById('cli-resumo-pareto').innerHTML =
-    `<strong>${fmtNum(nPara80)}</strong> de <strong>${fmtNum(ordenados.length)}</strong> clientes (${ordenados.length ? Math.round(nPara80/ordenados.length*100) : 0}%) respondem por 80% do faturamento.`;
+    `<strong>${fmtNum(nPara90)}</strong> de <strong>${fmtNum(ordenados.length)}</strong> clientes (${ordenados.length ? Math.round(nPara90/ordenados.length*100) : 0}%) respondem por 90% do faturamento.` +
+    (nPara90 > LIMITE_VISUAL ? ` Exibindo os ${LIMITE_VISUAL} principais no gráfico.` : '');
 
   _ensureChartSetup();
   if (_cliGraficoPareto) _cliGraficoPareto.destroy();
   _cliGraficoPareto = new Chart(document.getElementById('cli-grafico-pareto').getContext('2d'), {
-    type: 'line',
-    data: { labels: ordenados.map((c,i) => i+1), datasets: [{
-      label: '% acumulado do faturamento', data: pontos,
-      borderColor: '#1a5c5a', backgroundColor: 'rgba(26,92,90,.15)', fill: true, tension: .15, pointRadius: 0,
-    }] },
+    type: 'bar',
+    data: {
+      labels: subset.map(c => c.Cliente.length > 22 ? c.Cliente.slice(0,22)+'…' : c.Cliente),
+      datasets: [
+        { type: 'bar', label: 'Faturamento', data: subset.map(c => c.Faturamento), backgroundColor: '#1a5c5a', yAxisID: 'y' },
+        { type: 'line', label: '% acumulado', data: subset.map(c => c.percAcumulado), borderColor: '#d97706', backgroundColor: '#d97706', yAxisID: 'y1', tension: .15, pointRadius: 2 },
+      ],
+    },
     options: {
       responsive: true,
-      plugins: { legend:{display:false}, tooltip:{ callbacks:{
-        title: items => 'Top ' + items[0].label + ' cliente(s)',
-        label: c => c.parsed.y.toFixed(1)+'% do faturamento acumulado',
-      } } },
-      scales: { x:{ title:{display:true,text:'Clientes (ranking por faturamento)'} }, y:{ min:0, max:100, ticks:{ callback:v=>v+'%' } } },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: { callbacks: {
+          title: items => subset[items[0].dataIndex]?.Cliente || '',
+          label: c => c.dataset.type === 'bar' ? 'Faturamento: '+fmtBrl(c.parsed.y) : '% acumulado: '+c.parsed.y.toFixed(1)+'%',
+        } },
+      },
+      scales: {
+        x:  { ticks: { autoSkip:false, maxRotation:60, minRotation:40, font:{size:9} } },
+        y:  { position:'left',  ticks:{ callback:v=>fmtBrl(v) } },
+        y1: { position:'right', min:0, max:100, ticks:{ callback:v=>v+'%' }, grid:{drawOnChartArea:false} },
+      },
     },
   });
 }
