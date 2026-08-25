@@ -195,8 +195,11 @@
     .v-corrida-topo{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:5px}
     .v-corrida-nome{font-weight:600;color:var(--text)}
     .v-corrida-valor{font-weight:700;font-family:var(--mono);font-size:12px;color:var(--text-muted)}
-    .v-corrida-trilha{height:10px;background:#f0f4f5;border-radius:5px;overflow:hidden}
+    .v-corrida-trilha{height:10px;background:#f0f4f5;border-radius:5px;overflow:hidden;display:flex}
     .v-corrida-barra{height:100%;border-radius:5px;transition:width .4s ease}
+    .v-corrida-seg{height:100%;transition:width .4s ease}
+    .v-corrida-legenda-item{display:flex;align-items:center;gap:5px}
+    .v-corrida-legenda-cor{width:10px;height:10px;border-radius:3px;display:inline-block}
 
     /* ── Painel de relatório ── */
     .rel-panel{display:none;flex-direction:column;gap:16px}
@@ -1007,6 +1010,7 @@
         <div class="vendas-secao">
           <div class="vendas-secao-titulo">Corrida por vertical</div>
           <div id="v-tabs-vertical" style="display:flex;gap:8px;margin-bottom:14px"></div>
+          <div id="v-corrida-legenda-meses" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--text-muted)"></div>
           <div id="v-corrida-vertical"></div>
         </div>
 
@@ -3617,7 +3621,16 @@ function _montarCorridaVertical(vendedores) {
     return `<button class="v-tab-vertical ${ativo} ${info.cls}" onclick="_trocarVerticalCorrida('${esc(v)}')">${esc(v)}</button>`;
   }).join('');
 
-  _renderCorridaVertical(vendedores);
+  // Legenda de cores por mês — mesma cor pro mesmo mês em todas as barras, pra dar pra comparar
+  const meses = [...new Set(vendedores.flatMap(v => Object.keys(v.FatMeses||{})))]
+    .sort((a,b) => Number(a.replace('/','')) - Number(b.replace('/','')));
+  document.getElementById('v-corrida-legenda-meses').innerHTML = meses.map((m,i) => `
+    <span class="v-corrida-legenda-item">
+      <span class="v-corrida-legenda-cor" style="background:${_CORES_ANALISES[i%_CORES_ANALISES.length]}"></span>
+      ${esc(_mesLabelCurto(m))}
+    </span>`).join('');
+
+  _renderCorridaVertical(vendedores, meses);
 }
 
 function _trocarVerticalCorrida(vertical) {
@@ -3625,27 +3638,32 @@ function _trocarVerticalCorrida(vertical) {
   _montarCorridaVertical(_todosVendedores);
 }
 
-function _renderCorridaVertical(vendedores) {
+function _renderCorridaVertical(vendedores, meses) {
   const lista = vendedores.filter(v => v.Vertical === _verticalAtivaCorrida).slice(0, 10);
   const el = document.getElementById('v-corrida-vertical');
   if (!lista.length) { el.innerHTML = '<div class="empty"><div class="empty-text">Sem vendedores nesta vertical.</div></div>'; return; }
 
   const lider = lista[0].FatTotal || 1; // evita divisão por zero
-  const info = _CORES_VERTICAL[_verticalAtivaCorrida] || { cor:'#1a5c5a' };
   const medalhas = ['🥇','🥈','🥉'];
 
   el.innerHTML = lista.map((v, idx) => {
     const fat = v.FatTotal || 0;
-    const pct = lider ? Math.max(2, (fat / lider) * 100) : 0;
     const medalha = medalhas[idx] || `${idx+1}º`;
+    // Largura mínima visível de 2% no total da barra (sem distorcer a proporção interna entre meses)
+    const pctTotalReal = lider ? (fat / lider) * 100 : 0;
+    const fatorVisual  = (pctTotalReal > 0 && pctTotalReal < 2) ? 2 / pctTotalReal : 1;
+    const segmentos = meses.map((m,i) => {
+      const valorMes = v.FatMeses?.[m] || 0;
+      const pct = lider ? (valorMes / lider) * 100 * fatorVisual : 0;
+      if (pct <= 0) return '';
+      return `<div class="v-corrida-seg" style="width:${pct}%;background:${_CORES_ANALISES[i%_CORES_ANALISES.length]}" title="${esc(_mesLabelCurto(m))}: ${esc(fmtBrl(valorMes))}"></div>`;
+    }).join('');
     return `<div class="v-corrida-linha">
       <div class="v-corrida-topo">
         <span class="v-corrida-nome">${medalha} ${esc(v.Vendedor)}</span>
         <span class="v-corrida-valor">${fmtBrl(fat)}</span>
       </div>
-      <div class="v-corrida-trilha">
-        <div class="v-corrida-barra" style="width:${pct}%;background:${info.cor}"></div>
-      </div>
+      <div class="v-corrida-trilha">${segmentos}</div>
     </div>`;
   }).join('');
 }
