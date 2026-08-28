@@ -726,6 +726,66 @@
       </div>
     </div>
 
+    <!-- ══ RELATÓRIO: INSPEÇÃO E QUALIDADE ══ -->
+    <div id="rel-qualidade" class="rel-panel">
+      <div class="rel-header">
+        <button class="rel-back" onclick="voltarMenu()">← Voltar</button>
+        <div class="rel-title">🎖️ Inspeção e Qualidade</div>
+        <div class="rel-actions">
+          <button class="btn btn-secondary btn-sm" onclick="_carregarQualidade(true)">🔄 Atualizar</button>
+          <button class="btn btn-print btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <button id="qtab-diario"  class="btn btn-primary btn-sm"   onclick="setSubAbaQualidade('diario')"  style="flex:1">📅 Yeld Diário</button>
+        <button id="qtab-mensal"  class="btn btn-secondary btn-sm" onclick="setSubAbaQualidade('mensal')"  style="flex:1">📊 Resumo Mensal</button>
+        <button id="qtab-grafico" class="btn btn-secondary btn-sm" onclick="setSubAbaQualidade('grafico')" style="flex:1">📈 Gráfico</button>
+      </div>
+
+      <div id="qualidade-loading" class="empty"><div class="empty-icon">🎖️</div><div class="empty-text">Carregando dados de qualidade...</div></div>
+
+      <!-- SUB-ABA: YELD DIÁRIO -->
+      <div id="qualidade-sub-diario" class="vendas-sub" style="display:none">
+        <div class="filtros-bar">
+          <div class="filtro-group"><label>De</label><input type="date" id="q-de"></div>
+          <div class="filtro-group"><label>Até</label><input type="date" id="q-ate"></div>
+          <button class="btn btn-primary btn-sm" onclick="_renderYeldDiario()" style="margin-top:20px">🔍 Filtrar</button>
+        </div>
+        <div class="table-wrap" style="overflow-x:auto">
+          <div class="table-info"><span id="q-diario-count"></span></div>
+          <table class="tbl-grid">
+            <thead><tr><th>Data</th><th>Qtde</th><th>Etiqueta</th><th>Embalagem</th><th>Acessórios</th><th>Case</th><th>Silk</th><th>Lente</th><th>Defeitos</th><th>YELD</th></tr></thead>
+            <tbody id="q-tabela-diario"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SUB-ABA: RESUMO MENSAL -->
+      <div id="qualidade-sub-mensal" class="vendas-sub" style="display:none">
+        <div class="filtros-bar">
+          <div class="filtro-group"><label>Ano</label><select id="q-ano" onchange="_renderResumoMensal()"></select></div>
+        </div>
+        <div class="table-wrap" style="overflow-x:auto">
+          <table class="tbl-grid">
+            <thead><tr><th>Mês</th><th>Qtde</th><th>Etiqueta</th><th>Acessórios</th><th>Case</th><th>Silk</th><th>Embalagem</th><th>Lente</th><th>Defeitos</th><th>YELD</th></tr></thead>
+            <tbody id="q-tabela-mensal"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SUB-ABA: GRÁFICO -->
+      <div id="qualidade-sub-grafico" class="vendas-sub" style="display:none">
+        <div class="filtros-bar">
+          <div class="filtro-group"><label>Ano</label><select id="q-ano-grafico" onchange="_renderGraficoYeld()"></select></div>
+        </div>
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">YELD por mês</div>
+          <canvas id="q-grafico-yeld" height="90"></canvas>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ RELATÓRIO 5: CURVA ABC ══ -->
     <div id="rel-abc" class="rel-panel">
       <div class="rel-header">
@@ -1399,6 +1459,7 @@ const CARDS_PADRAO = [
   { id:'fechamento',      icon:'📅', title:'Fechamento Mensal M5/M3',     desc:'Consulta o fechamento mensal já registrado no histórico de Insumos (M5) e Produtos Acabados (M3), com saldo inicial, entradas, saídas e saldo final.',badge:'Fechamento',       cor:'#7c3aed', action:"abrirRelatorio('fechamento')" },
   { id:'vendas',          icon:'💹', title:'Dashboard de Vendas',         desc:'Faturamento por vertical, ranking de vendedores e produtos, comparação anual e evolução mensal — dados da planilha de vendas.',  badge:'Vendas',           cor:'#0d9488', action:"abrirRelatorio('vendas'); carregarVendas();" },
   { id:'vendas-segmento', icon:'📈', title:'Vendas por Segmento',         desc:'Quantidade e faturamento por segmento (Acessórios, Câmera, Gravador, Kit) e por localidade (Municipal/Nacional), mês a mês.',      badge:'Vendas',           cor:'#0d9488', action:"abrirRelatorio('vendas-segmento'); carregarVendasSegmento();" },
+  { id:'qualidade',       icon:'🎖️', title:'Inspeção e Qualidade',        desc:'Yeld diário e mensal por tipo de defeito (etiqueta, silk, embalagem, acessórios, case, lente), com gráfico de evolução.',    badge:'Qualidade',        cor:'#7c3aed', action:"abrirRelatorio('qualidade'); _carregarQualidade();" },
   { id:'guia',            icon:'📄', title:'Guia de Documentação',        desc:'Abra um modal interno para carregar o PDF e consultar o guia dentro do app.',                                                    badge:'Docs',             cor:'#0ea5e9', action:"abrirModalGuia()" },
   { id:'usuarios',        icon:'👤', title:'Manutenção de Usuários',      desc:'Criar, editar, trocar senha e desativar usuários do sistema.',                                                                    badge:'Admin',            cor:'#7c3aed', action:"abrirRelatorio('usuarios'); carregarUsuarios();", adminOnly: true },
 ];
@@ -1749,6 +1810,7 @@ function abrirRelatorio(id) {
     'estoque-pa':       '🏭 Estoque PA',
     'ops':              '📋 OPs',
     'producao':         '🏗️ Produção Diária',
+    'qualidade':        '🎖️ Inspeção e Qualidade',
     'abc':              '📊 Curva ABC',
     'extrato':          '🔍 Extrato',
     'compras':          '🛒 Lista de Compras',
@@ -2284,6 +2346,167 @@ function _renderProducaoDiaria(produtos, dias) {
       </tr>
       </tbody>
     </table>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  REL: INSPEÇÃO E QUALIDADE (DB_QUALIDADE)
+// ══════════════════════════════════════════════════════
+let _todosQualidade = [];
+let _qualidadeCarregada = false;
+let _qGraficoYeld;
+
+async function _carregarQualidade(forcar = false) {
+  if (_qualidadeCarregada && !forcar) { setSubAbaQualidade('diario'); return; }
+  document.getElementById('qualidade-loading').style.display = 'block';
+  document.getElementById('qualidade-loading').innerHTML = '<div class="empty-icon">🎖️</div><div class="empty-text">Carregando dados de qualidade...</div>';
+  ['diario','mensal','grafico'].forEach(n => document.getElementById('qualidade-sub-'+n).style.display = 'none');
+  try {
+    const res = await api('listarQualidade');
+    if (!res?.ok) {
+      document.getElementById('qualidade-loading').innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-text">${esc(res?.mensagem||'Erro ao carregar.')}</div>`;
+      return;
+    }
+    _todosQualidade = res.itens || [];
+    _qualidadeCarregada = true;
+    document.getElementById('qualidade-loading').style.display = 'none';
+
+    const anos = [...new Set(_todosQualidade.map(i => i.ano))].sort((a,b) => b-a);
+    ['q-ano','q-ano-grafico'].forEach(elId => {
+      document.getElementById(elId).innerHTML = anos.map(a => `<option value="${a}">${a}</option>`).join('');
+    });
+
+    setSubAbaQualidade('diario');
+  } catch(e) {
+    document.getElementById('qualidade-loading').innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-text">Erro: ${esc(e.message)}</div>`;
+  }
+}
+
+function setSubAbaQualidade(nome) {
+  ['diario','mensal','grafico'].forEach(n => {
+    document.getElementById('qualidade-sub-'+n).style.display = n===nome ? 'block' : 'none';
+    document.getElementById('qtab-'+n).className = 'btn btn-sm ' + (n===nome ? 'btn-primary' : 'btn-secondary');
+  });
+  if (nome === 'diario')  _renderYeldDiario();
+  if (nome === 'mensal')  _renderResumoMensal();
+  if (nome === 'grafico') _renderGraficoYeld();
+}
+
+function _corYeld(y) { return y >= 98 ? '#16a34a' : y >= 95 ? '#d97706' : '#dc2626'; }
+
+function _renderYeldDiario() {
+  const de  = document.getElementById('q-de').value;   // yyyy-mm-dd
+  const ate = document.getElementById('q-ate').value;
+  let itens = _todosQualidade;
+  if (de || ate) {
+    itens = itens.filter(i => {
+      const iso = _toISO(i.data);
+      if (de  && iso < de)  return false;
+      if (ate && iso > ate) return false;
+      return true;
+    });
+  }
+  itens = itens.slice().sort((a,b) => _toISO(a.data).localeCompare(_toISO(b.data)));
+
+  document.getElementById('q-diario-count').innerHTML = `<strong>${fmtNum(itens.length)}</strong> inspeções encontradas`;
+
+  const tbody = document.getElementById('q-tabela-diario');
+  if (!itens.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum registro encontrado.</td></tr>'; return; }
+
+  const totalPorMes = {};
+  itens.forEach(i => { const k = i.mes+'/'+i.ano; totalPorMes[k] = (totalPorMes[k]||0) + i.qtde; });
+
+  let html = '';
+  let mesAtual = null;
+  itens.forEach(i => {
+    const chaveMes = i.mes + '/' + i.ano;
+    if (chaveMes !== mesAtual) {
+      mesAtual = chaveMes;
+      html += `<tr style="background:#f0f6f6"><td colspan="10" style="font-weight:700;text-transform:capitalize">${esc(i.mes)} ${i.ano} <span style="font-weight:400;color:var(--text-muted)">— ${fmtNum(totalPorMes[chaveMes])}</span></td></tr>`;
+    }
+    html += `<tr>
+      <td class="mono">${esc(i.data)}</td>
+      <td class="num">${fmtNum(i.qtde)}</td>
+      <td class="num">${fmtNum(i.defeitos.etiqueta)}</td>
+      <td class="num">${fmtNum(i.defeitos.embalagem)}</td>
+      <td class="num">${fmtNum(i.defeitos.acessorios)}</td>
+      <td class="num">${fmtNum(i.defeitos.case)}</td>
+      <td class="num">${fmtNum(i.defeitos.silk)}</td>
+      <td class="num">${fmtNum(i.defeitos.lente)}</td>
+      <td class="num">${fmtNum(i.totalDefeitos)}</td>
+      <td class="num" style="font-weight:700;color:${_corYeld(i.yeld)}">${i.yeld.toFixed(2)}%</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+}
+
+function _agruparQualidadePorMes(ano) {
+  const porMes = {};
+  _todosQualidade.filter(i => i.ano === ano).forEach(i => {
+    if (!porMes[i.mesNum]) porMes[i.mesNum] = { mes:i.mes, qtde:0, etiqueta:0, silk:0, embalagem:0, acessorios:0, case:0, lente:0, defeitos:0 };
+    const p = porMes[i.mesNum];
+    p.qtde       += i.qtde;
+    p.etiqueta   += i.defeitos.etiqueta;
+    p.silk       += i.defeitos.silk;
+    p.embalagem  += i.defeitos.embalagem;
+    p.acessorios += i.defeitos.acessorios;
+    p.case       += i.defeitos.case;
+    p.lente      += i.defeitos.lente;
+    p.defeitos   += i.totalDefeitos;
+  });
+  return porMes;
+}
+
+function _renderResumoMensal() {
+  const ano = Number(document.getElementById('q-ano').value);
+  const porMes = _agruparQualidadePorMes(ano);
+  const mesesOrdenados = Object.keys(porMes).map(Number).sort((a,b) => b-a); // mais recente primeiro
+
+  const ytd = Object.values(porMes).reduce((acc,p) => {
+    acc.qtde += p.qtde; acc.etiqueta += p.etiqueta; acc.silk += p.silk; acc.embalagem += p.embalagem;
+    acc.acessorios += p.acessorios; acc.case += p.case; acc.lente += p.lente; acc.defeitos += p.defeitos;
+    return acc;
+  }, { qtde:0, etiqueta:0, silk:0, embalagem:0, acessorios:0, case:0, lente:0, defeitos:0 });
+
+  const linha = (label, p, destaque) => {
+    const yeld = p.qtde > 0 ? (p.qtde - p.defeitos) / p.qtde * 100 : 0;
+    return `<tr ${destaque ? 'style="font-weight:700;background:#f0f6f6"' : ''}>
+      <td style="text-transform:capitalize">${esc(label)}</td>
+      <td class="num">${fmtNum(p.qtde)}</td>
+      <td class="num">${fmtNum(p.etiqueta)}</td>
+      <td class="num">${fmtNum(p.acessorios)}</td>
+      <td class="num">${fmtNum(p.case)}</td>
+      <td class="num">${fmtNum(p.silk)}</td>
+      <td class="num">${fmtNum(p.embalagem)}</td>
+      <td class="num">${fmtNum(p.lente)}</td>
+      <td class="num">${fmtNum(p.defeitos)}</td>
+      <td class="num" style="font-weight:700;color:${_corYeld(yeld)}">${p.qtde>0 ? yeld.toFixed(2)+'%' : '—'}</td>
+    </tr>`;
+  };
+
+  let html = linha('YTD', ytd, true);
+  mesesOrdenados.forEach(m => { html += linha(porMes[m].mes, porMes[m], false); });
+  document.getElementById('q-tabela-mensal').innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:20px">Sem dados para este ano.</td></tr>';
+}
+
+function _renderGraficoYeld() {
+  const ano = Number(document.getElementById('q-ano-grafico').value);
+  const porMes = _agruparQualidadePorMes(ano);
+  const mesesOrdenados = Object.keys(porMes).map(Number).sort((a,b) => a-b);
+  const labels = mesesOrdenados.map(m => porMes[m].mes);
+  const valores = mesesOrdenados.map(m => { const p = porMes[m]; return p.qtde>0 ? (p.qtde-p.defeitos)/p.qtde*100 : 0; });
+  const cores = valores.map(_corYeld);
+
+  _ensureChartSetup();
+  if (_qGraficoYeld) _qGraficoYeld.destroy();
+  _qGraficoYeld = new Chart(document.getElementById('q-grafico-yeld').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label:'YELD', data: valores, backgroundColor: cores }] },
+    options: {
+      responsive: true,
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label:c=>c.parsed.y.toFixed(2)+'%' } } },
+      scales: { y: { min:0, max:100, ticks:{ callback:v=>v+'%' } } },
+    },
+  });
 }
 
 // ══════════════════════════════════════════════════════
