@@ -790,8 +790,8 @@
         <div class="table-wrap" style="overflow-x:auto">
           <div class="table-info"><span id="q-op-count">Selecione o período e clique em Buscar OPs</span></div>
           <table class="tbl-grid">
-            <thead><tr><th>Data</th><th>Código</th><th>Descrição</th><th>Qtde</th><th>Etiqueta</th><th>Embalagem</th><th>Acessórios</th><th>Case</th><th>Silk</th><th>Lente</th><th>Defeitos</th><th>YELD</th></tr></thead>
-            <tbody id="q-tabela-op"><tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:20px">Selecione o período e a OP.</td></tr></tbody>
+            <thead><tr><th>Data</th><th>OP</th><th>Código</th><th>Descrição</th><th>Qtde</th><th>Etiqueta</th><th>Embalagem</th><th>Acessórios</th><th>Case</th><th>Silk</th><th>Lente</th><th>Defeitos</th><th>YELD</th></tr></thead>
+            <tbody id="q-tabela-op"><tr><td colspan="13" style="text-align:center;color:var(--text-muted);padding:20px">Selecione o período e a OP.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -2517,30 +2517,31 @@ function _buscarOpsQualidade() {
   const ops = [...new Set(itens.map(i => i.op).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pt-BR'));
 
   const sel = document.getElementById('q-op-select');
-  sel.innerHTML = ops.length
-    ? '<option value="">Selecione...</option>' + ops.map(op => `<option value="${esc(op)}">${esc(op)}</option>`).join('')
-    : '<option value="">Nenhuma OP encontrada</option>';
+  sel.innerHTML = '<option value="">— Todas as OPs —</option>' +
+    (ops.length ? ops.map(op => `<option value="${esc(op)}">${esc(op)}</option>`).join('') : '');
   document.getElementById('q-op-select-bar').style.display = 'flex';
-  document.getElementById('q-op-count').textContent = `${fmtNum(ops.length)} OP(s) no período — selecione uma e clique em Gerar`;
-  document.getElementById('q-tabela-op').innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:20px">Selecione a OP e clique em Gerar.</td></tr>';
+  document.getElementById('q-op-count').textContent = `${fmtNum(ops.length)} OP(s) no período — selecione uma (ou todas) e clique em Gerar`;
+  document.getElementById('q-tabela-op').innerHTML = '<tr><td colspan="13" style="text-align:center;color:var(--text-muted);padding:20px">Selecione a OP e clique em Gerar.</td></tr>';
 }
 
 function _renderConsultaOP() {
   const de  = document.getElementById('q-op-de').value;
   const ate = document.getElementById('q-op-ate').value;
-  const op  = document.getElementById('q-op-select').value;
-  if (!op) { toast('Selecione a OP.', 'warn'); return; }
+  const op  = document.getElementById('q-op-select').value; // '' = todas as OPs do período
 
   const itens = _todosQualidade.filter(i => {
     const iso = _toISO(i.data);
-    return iso >= de && iso <= ate && i.op === op;
-  }).sort((a,b) => _toISO(a.data).localeCompare(_toISO(b.data)));
+    return iso >= de && iso <= ate && (!op || i.op === op);
+  }).sort((a,b) => _toISO(a.data).localeCompare(_toISO(b.data)) || String(a.op||'').localeCompare(String(b.op||''),'pt-BR'));
 
-  document.getElementById('q-op-count').innerHTML = `<strong>${fmtNum(itens.length)}</strong> registro(s) para a OP <strong>${esc(op)}</strong>`;
+  document.getElementById('q-op-count').innerHTML = op
+    ? `<strong>${fmtNum(itens.length)}</strong> registro(s) para a OP <strong>${esc(op)}</strong>`
+    : `<strong>${fmtNum(itens.length)}</strong> registro(s) — todas as OPs do período`;
   const tbody = document.getElementById('q-tabela-op');
-  if (!itens.length) { tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum registro encontrado.</td></tr>'; return; }
+  if (!itens.length) { tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum registro encontrado.</td></tr>'; return; }
   tbody.innerHTML = itens.map(i => `<tr>
     <td class="mono">${esc(i.data)}</td>
+    <td class="mono">${esc(i.op)}</td>
     <td class="mono">${esc(i.codigo)}</td>
     <td class="desc">${esc(i.descricao)}</td>
     <td class="num">${fmtNum(i.qtde)}</td>
