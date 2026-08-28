@@ -737,10 +737,12 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:10px;margin-bottom:14px">
-        <button id="qtab-diario"  class="btn btn-primary btn-sm"   onclick="setSubAbaQualidade('diario')"  style="flex:1">📅 Yeld Diário</button>
-        <button id="qtab-mensal"  class="btn btn-secondary btn-sm" onclick="setSubAbaQualidade('mensal')"  style="flex:1">📊 Resumo Mensal</button>
-        <button id="qtab-grafico" class="btn btn-secondary btn-sm" onclick="setSubAbaQualidade('grafico')" style="flex:1">📈 Gráfico</button>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <button id="qtab-diario"   class="btn btn-primary btn-sm"   onclick="setSubAbaQualidade('diario')"   style="flex:1">📅 Yeld Diário</button>
+        <button id="qtab-mensal"   class="btn btn-secondary btn-sm" onclick="setSubAbaQualidade('mensal')"   style="flex:1">📊 Resumo Mensal</button>
+        <button id="qtab-op"       class="btn btn-secondary btn-sm" onclick="setSubAbaQualidade('op')"       style="flex:1">🔎 Consulta por OP</button>
+        <button id="qtab-grafico"  class="btn btn-secondary btn-sm" onclick="setSubAbaQualidade('grafico')"  style="flex:1">📈 Gráfico</button>
+        <button id="qtab-analise"  class="btn btn-secondary btn-sm" onclick="setSubAbaQualidade('analise')"  style="flex:1">🧪 Análise</button>
       </div>
 
       <div id="qualidade-loading" class="empty"><div class="empty-icon">🎖️</div><div class="empty-text">Carregando dados de qualidade...</div></div>
@@ -774,6 +776,26 @@
         </div>
       </div>
 
+      <!-- SUB-ABA: CONSULTA POR OP -->
+      <div id="qualidade-sub-op" class="vendas-sub" style="display:none">
+        <div class="filtros-bar">
+          <div class="filtro-group"><label>De</label><input type="date" id="q-op-de"></div>
+          <div class="filtro-group"><label>Até</label><input type="date" id="q-op-ate"></div>
+          <button class="btn btn-secondary btn-sm" onclick="_buscarOpsQualidade()" style="margin-top:20px">🔍 Buscar OPs</button>
+        </div>
+        <div class="filtros-bar" id="q-op-select-bar" style="display:none">
+          <div class="filtro-group" style="min-width:220px"><label>OP</label><select id="q-op-select"></select></div>
+          <button class="btn btn-primary btn-sm" onclick="_renderConsultaOP()" style="margin-top:20px">🔍 Gerar</button>
+        </div>
+        <div class="table-wrap" style="overflow-x:auto">
+          <div class="table-info"><span id="q-op-count">Selecione o período e clique em Buscar OPs</span></div>
+          <table class="tbl-grid">
+            <thead><tr><th>Data</th><th>Código</th><th>Descrição</th><th>Qtde</th><th>Etiqueta</th><th>Embalagem</th><th>Acessórios</th><th>Case</th><th>Silk</th><th>Lente</th><th>Defeitos</th><th>YELD</th></tr></thead>
+            <tbody id="q-tabela-op"><tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:20px">Selecione o período e a OP.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- SUB-ABA: GRÁFICO -->
       <div id="qualidade-sub-grafico" class="vendas-sub" style="display:none">
         <div class="filtros-bar">
@@ -781,7 +803,29 @@
         </div>
         <div class="vendas-secao">
           <div class="vendas-secao-titulo">YELD por mês</div>
-          <canvas id="q-grafico-yeld" height="90"></canvas>
+          <canvas id="q-grafico-yeld" height="100"></canvas>
+        </div>
+      </div>
+
+      <!-- SUB-ABA: ANÁLISE -->
+      <div id="qualidade-sub-analise" class="vendas-sub" style="display:none">
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Evolução do YELD (todos os meses)</div>
+          <canvas id="q-an-evolucao" height="90"></canvas>
+        </div>
+        <div class="vendas-painel-layout">
+          <div class="vendas-secao" style="flex:1;min-width:320px">
+            <div class="vendas-secao-titulo">Composição dos Defeitos por Tipo</div>
+            <canvas id="q-an-composicao" height="260"></canvas>
+          </div>
+          <div class="vendas-secao" style="flex:1;min-width:320px">
+            <div class="vendas-secao-titulo">Top 10 Códigos — Pior YELD</div>
+            <canvas id="q-an-top-pior" height="260"></canvas>
+          </div>
+        </div>
+        <div class="vendas-secao">
+          <div class="vendas-secao-titulo">Qtde Inspecionada x Defeitos por Mês</div>
+          <canvas id="q-an-qtde-defeitos" height="100"></canvas>
         </div>
       </div>
     </div>
@@ -2359,7 +2403,7 @@ async function _carregarQualidade(forcar = false) {
   if (_qualidadeCarregada && !forcar) { setSubAbaQualidade('diario'); return; }
   document.getElementById('qualidade-loading').style.display = 'block';
   document.getElementById('qualidade-loading').innerHTML = '<div class="empty-icon">🎖️</div><div class="empty-text">Carregando dados de qualidade...</div>';
-  ['diario','mensal','grafico'].forEach(n => document.getElementById('qualidade-sub-'+n).style.display = 'none');
+  ['diario','mensal','op','grafico','analise'].forEach(n => document.getElementById('qualidade-sub-'+n).style.display = 'none');
   try {
     const res = await api('listarQualidade');
     if (!res?.ok) {
@@ -2382,16 +2426,36 @@ async function _carregarQualidade(forcar = false) {
 }
 
 function setSubAbaQualidade(nome) {
-  ['diario','mensal','grafico'].forEach(n => {
+  ['diario','mensal','op','grafico','analise'].forEach(n => {
     document.getElementById('qualidade-sub-'+n).style.display = n===nome ? 'block' : 'none';
     document.getElementById('qtab-'+n).className = 'btn btn-sm ' + (n===nome ? 'btn-primary' : 'btn-secondary');
   });
   if (nome === 'diario')  _renderYeldDiario();
   if (nome === 'mensal')  _renderResumoMensal();
   if (nome === 'grafico') _renderGraficoYeld();
+  if (nome === 'analise') _renderAnaliseQualidade();
+  // 'op' não gera nada sozinha — só depois que o usuário escolhe período e OP
 }
 
 function _corYeld(y) { return y >= 98 ? '#16a34a' : y >= 95 ? '#d97706' : '#dc2626'; }
+
+// Agrupa uma lista de itens (registros individuais) em um item por DIA, somando qtde/defeitos
+function _agruparQualidadePorDia(itens) {
+  const porDia = {};
+  itens.forEach(i => {
+    if (!porDia[i.data]) porDia[i.data] = { data:i.data, mes:i.mes, ano:i.ano, qtde:0, etiqueta:0, silk:0, embalagem:0, acessorios:0, case:0, lente:0, defeitos:0 };
+    const p = porDia[i.data];
+    p.qtde       += i.qtde;
+    p.etiqueta   += i.defeitos.etiqueta;
+    p.silk       += i.defeitos.silk;
+    p.embalagem  += i.defeitos.embalagem;
+    p.acessorios += i.defeitos.acessorios;
+    p.case       += i.defeitos.case;
+    p.lente      += i.defeitos.lente;
+    p.defeitos   += i.totalDefeitos;
+  });
+  return Object.values(porDia);
+}
 
 function _renderYeldDiario() {
   const de  = document.getElementById('q-de').value;   // yyyy-mm-dd
@@ -2405,38 +2469,90 @@ function _renderYeldDiario() {
       return true;
     });
   }
-  itens = itens.slice().sort((a,b) => _toISO(a.data).localeCompare(_toISO(b.data)));
+  const porDia = _agruparQualidadePorDia(itens).sort((a,b) => _toISO(a.data).localeCompare(_toISO(b.data)));
 
-  document.getElementById('q-diario-count').innerHTML = `<strong>${fmtNum(itens.length)}</strong> inspeções encontradas`;
+  document.getElementById('q-diario-count').innerHTML = `<strong>${fmtNum(porDia.length)}</strong> dia(s) com inspeção`;
 
   const tbody = document.getElementById('q-tabela-diario');
-  if (!itens.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum registro encontrado.</td></tr>'; return; }
+  if (!porDia.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum registro encontrado.</td></tr>'; return; }
 
   const totalPorMes = {};
-  itens.forEach(i => { const k = i.mes+'/'+i.ano; totalPorMes[k] = (totalPorMes[k]||0) + i.qtde; });
+  porDia.forEach(p => { const k = p.mes+'/'+p.ano; totalPorMes[k] = (totalPorMes[k]||0) + p.qtde; });
 
   let html = '';
   let mesAtual = null;
-  itens.forEach(i => {
-    const chaveMes = i.mes + '/' + i.ano;
+  porDia.forEach(p => {
+    const chaveMes = p.mes + '/' + p.ano;
     if (chaveMes !== mesAtual) {
       mesAtual = chaveMes;
-      html += `<tr style="background:#f0f6f6"><td colspan="10" style="font-weight:700;text-transform:capitalize">${esc(i.mes)} ${i.ano} <span style="font-weight:400;color:var(--text-muted)">— ${fmtNum(totalPorMes[chaveMes])}</span></td></tr>`;
+      html += `<tr style="background:#f0f6f6"><td colspan="10" style="font-weight:700;text-transform:capitalize">${esc(p.mes)} ${p.ano} <span style="font-weight:400;color:var(--text-muted)">— ${fmtNum(totalPorMes[chaveMes])}</span></td></tr>`;
     }
+    const yeld = p.qtde > 0 ? (p.qtde - p.defeitos) / p.qtde * 100 : 0;
     html += `<tr>
-      <td class="mono">${esc(i.data)}</td>
-      <td class="num">${fmtNum(i.qtde)}</td>
-      <td class="num">${fmtNum(i.defeitos.etiqueta)}</td>
-      <td class="num">${fmtNum(i.defeitos.embalagem)}</td>
-      <td class="num">${fmtNum(i.defeitos.acessorios)}</td>
-      <td class="num">${fmtNum(i.defeitos.case)}</td>
-      <td class="num">${fmtNum(i.defeitos.silk)}</td>
-      <td class="num">${fmtNum(i.defeitos.lente)}</td>
-      <td class="num">${fmtNum(i.totalDefeitos)}</td>
-      <td class="num" style="font-weight:700;color:${_corYeld(i.yeld)}">${i.yeld.toFixed(2)}%</td>
+      <td class="mono">${esc(p.data)}</td>
+      <td class="num">${fmtNum(p.qtde)}</td>
+      <td class="num">${fmtNum(p.etiqueta)}</td>
+      <td class="num">${fmtNum(p.embalagem)}</td>
+      <td class="num">${fmtNum(p.acessorios)}</td>
+      <td class="num">${fmtNum(p.case)}</td>
+      <td class="num">${fmtNum(p.silk)}</td>
+      <td class="num">${fmtNum(p.lente)}</td>
+      <td class="num">${fmtNum(p.defeitos)}</td>
+      <td class="num" style="font-weight:700;color:${_corYeld(yeld)}">${yeld.toFixed(2)}%</td>
     </tr>`;
   });
   tbody.innerHTML = html;
+}
+
+// ── Consulta por OP — não carrega nada até o usuário escolher período e OP ──
+function _buscarOpsQualidade() {
+  const de  = document.getElementById('q-op-de').value;
+  const ate = document.getElementById('q-op-ate').value;
+  if (!de || !ate) { toast('Selecione o período (De e Até).', 'warn'); return; }
+
+  const itens = _todosQualidade.filter(i => {
+    const iso = _toISO(i.data);
+    return iso >= de && iso <= ate;
+  });
+  const ops = [...new Set(itens.map(i => i.op).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pt-BR'));
+
+  const sel = document.getElementById('q-op-select');
+  sel.innerHTML = ops.length
+    ? '<option value="">Selecione...</option>' + ops.map(op => `<option value="${esc(op)}">${esc(op)}</option>`).join('')
+    : '<option value="">Nenhuma OP encontrada</option>';
+  document.getElementById('q-op-select-bar').style.display = 'flex';
+  document.getElementById('q-op-count').textContent = `${fmtNum(ops.length)} OP(s) no período — selecione uma e clique em Gerar`;
+  document.getElementById('q-tabela-op').innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:20px">Selecione a OP e clique em Gerar.</td></tr>';
+}
+
+function _renderConsultaOP() {
+  const de  = document.getElementById('q-op-de').value;
+  const ate = document.getElementById('q-op-ate').value;
+  const op  = document.getElementById('q-op-select').value;
+  if (!op) { toast('Selecione a OP.', 'warn'); return; }
+
+  const itens = _todosQualidade.filter(i => {
+    const iso = _toISO(i.data);
+    return iso >= de && iso <= ate && i.op === op;
+  }).sort((a,b) => _toISO(a.data).localeCompare(_toISO(b.data)));
+
+  document.getElementById('q-op-count').innerHTML = `<strong>${fmtNum(itens.length)}</strong> registro(s) para a OP <strong>${esc(op)}</strong>`;
+  const tbody = document.getElementById('q-tabela-op');
+  if (!itens.length) { tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum registro encontrado.</td></tr>'; return; }
+  tbody.innerHTML = itens.map(i => `<tr>
+    <td class="mono">${esc(i.data)}</td>
+    <td class="mono">${esc(i.codigo)}</td>
+    <td class="desc">${esc(i.descricao)}</td>
+    <td class="num">${fmtNum(i.qtde)}</td>
+    <td class="num">${fmtNum(i.defeitos.etiqueta)}</td>
+    <td class="num">${fmtNum(i.defeitos.embalagem)}</td>
+    <td class="num">${fmtNum(i.defeitos.acessorios)}</td>
+    <td class="num">${fmtNum(i.defeitos.case)}</td>
+    <td class="num">${fmtNum(i.defeitos.silk)}</td>
+    <td class="num">${fmtNum(i.defeitos.lente)}</td>
+    <td class="num">${fmtNum(i.totalDefeitos)}</td>
+    <td class="num" style="font-weight:700;color:${_corYeld(i.yeld)}">${i.yeld.toFixed(2)}%</td>
+  </tr>`).join('');
 }
 
 function _agruparQualidadePorMes(ano) {
@@ -2499,12 +2615,147 @@ function _renderGraficoYeld() {
   _ensureChartSetup();
   if (_qGraficoYeld) _qGraficoYeld.destroy();
   _qGraficoYeld = new Chart(document.getElementById('q-grafico-yeld').getContext('2d'), {
-    type: 'bar',
-    data: { labels, datasets: [{ label:'YELD', data: valores, backgroundColor: cores }] },
+    data: {
+      labels,
+      datasets: [
+        { type:'bar',  label:'YELD',     data: valores, backgroundColor: cores, borderRadius: 8, borderSkipped: false, maxBarThickness: 56 },
+        { type:'line', label:'Meta 98%', data: mesesOrdenados.map(() => 98), borderColor:'#94a3b8', borderDash:[6,4], borderWidth:1.5, pointRadius:0 },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display:true, position:'top', labels:{ boxWidth:14, filter: item => item.text === 'Meta 98%' } },
+        tooltip: { callbacks: { label:c => c.dataset.label+': '+c.parsed.y.toFixed(2)+'%' } },
+        datalabels: { display: ctx => ctx.datasetIndex===0, color:'#374151', anchor:'end', align:'top', font:{ size:11, weight:700 }, formatter: v => v.toFixed(1)+'%' },
+      },
+      scales: { y: { min:0, max:110, ticks:{ callback: v => v<=100 ? v+'%' : '' }, grid:{ color:'#f3f4f6' } } },
+    },
+  });
+}
+
+// Lista todos os meses (ano+mês) presentes na base, ordenados cronologicamente
+function _todosMesesOrdenados() {
+  const chaves = [...new Set(_todosQualidade.map(i => `${i.ano}-${String(i.mesNum).padStart(2,'0')}`))].sort();
+  return chaves.map(k => {
+    const [ano, mesNum] = k.split('-').map(Number);
+    const item = _todosQualidade.find(i => i.ano===ano && i.mesNum===mesNum);
+    return { chave:k, ano, mesNum, mes: item ? item.mes : '' };
+  });
+}
+
+let _qAnEvolucao, _qAnComposicao, _qAnTopPior, _qAnQtdeDefeitos;
+
+function _renderAnaliseQualidade() {
+  const mesesChave = _todosMesesOrdenados();
+  const porChave = {};
+  _todosQualidade.forEach(i => {
+    const k = `${i.ano}-${String(i.mesNum).padStart(2,'0')}`;
+    if (!porChave[k]) porChave[k] = { qtde:0, defeitos:0 };
+    porChave[k].qtde     += i.qtde;
+    porChave[k].defeitos += i.totalDefeitos;
+  });
+  const labelsMeses = mesesChave.map(m => `${m.mes.slice(0,3)}/${String(m.ano).slice(2)}`);
+
+  _ensureChartSetup();
+
+  // 1) Evolução do YELD — todos os meses disponíveis (não só o ano selecionado no Resumo/Gráfico)
+  const yeldsEvolucao = mesesChave.map(m => { const p = porChave[m.chave]; return p.qtde>0 ? (p.qtde-p.defeitos)/p.qtde*100 : 0; });
+  if (_qAnEvolucao) _qAnEvolucao.destroy();
+  _qAnEvolucao = new Chart(document.getElementById('q-an-evolucao').getContext('2d'), {
+    type: 'line',
+    data: { labels: labelsMeses, datasets: [{
+      label: 'YELD', data: yeldsEvolucao, borderColor:'#1a5c5a', backgroundColor:'rgba(26,92,90,.15)',
+      fill:true, tension:.25, pointRadius:4, pointBackgroundColor: yeldsEvolucao.map(_corYeld),
+    }] },
     options: {
       responsive: true,
       plugins: { legend:{display:false}, tooltip:{ callbacks:{ label:c=>c.parsed.y.toFixed(2)+'%' } } },
       scales: { y: { min:0, max:100, ticks:{ callback:v=>v+'%' } } },
+    },
+  });
+
+  // 2) Composição dos defeitos por tipo — soma geral de todas as inspeções (essas 6 categorias
+  //    somam o total de defeitos, então rosca faz sentido matemático aqui)
+  const totais = { Etiqueta:0, Silk:0, Embalagem:0, 'Acessórios':0, Case:0, Lente:0 };
+  _todosQualidade.forEach(i => {
+    totais.Etiqueta      += i.defeitos.etiqueta;
+    totais.Silk           += i.defeitos.silk;
+    totais.Embalagem      += i.defeitos.embalagem;
+    totais['Acessórios']  += i.defeitos.acessorios;
+    totais.Case            += i.defeitos.case;
+    totais.Lente           += i.defeitos.lente;
+  });
+  const entradasComposicao = Object.entries(totais).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
+  const totalDefeitosGeral = entradasComposicao.reduce((s,e)=>s+e[1],0);
+  if (_qAnComposicao) _qAnComposicao.destroy();
+  _qAnComposicao = new Chart(document.getElementById('q-an-composicao').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: entradasComposicao.map(e=>e[0]), datasets: [{ data: entradasComposicao.map(e=>e[1]), backgroundColor: _CORES_ANALISES }] },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position:'right', labels:{ boxWidth:12, font:{size:10} } },
+        tooltip: { callbacks:{ label:c => `${c.label}: ${fmtNum(c.parsed)} (${totalDefeitosGeral ? (c.parsed/totalDefeitosGeral*100).toFixed(1) : 0}%)` } },
+      },
+    },
+  });
+
+  // 3) Top 10 códigos com pior YELD — só considera código com pelo menos 10 unidades
+  //    inspecionadas, pra não deixar um volume muito baixo distorcer o ranking
+  const porCodigo = {};
+  _todosQualidade.forEach(i => {
+    if (!i.codigo) return;
+    if (!porCodigo[i.codigo]) porCodigo[i.codigo] = { codigo:i.codigo, descricao:i.descricao, qtde:0, defeitos:0 };
+    porCodigo[i.codigo].qtde     += i.qtde;
+    porCodigo[i.codigo].defeitos += i.totalDefeitos;
+    if (i.descricao) porCodigo[i.codigo].descricao = i.descricao;
+  });
+  const MINIMO_QTDE_RANKING = 10;
+  const piores = Object.values(porCodigo)
+    .filter(c => c.qtde >= MINIMO_QTDE_RANKING)
+    .map(c => ({ ...c, yeld: (c.qtde - c.defeitos) / c.qtde * 100 }))
+    .sort((a,b) => a.yeld - b.yeld)
+    .slice(0, 10);
+  if (_qAnTopPior) _qAnTopPior.destroy();
+  _qAnTopPior = new Chart(document.getElementById('q-an-top-pior').getContext('2d'), {
+    type: 'bar',
+    data: { labels: piores.map(p=>p.codigo), datasets: [{ label:'YELD', data: piores.map(p=>p.yeld), backgroundColor: piores.map(p=>_corYeld(p.yeld)), borderRadius:6 }] },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display:false },
+        tooltip: { callbacks: {
+          title: items => piores[items[0].dataIndex]?.descricao || '',
+          label: c => 'YELD: '+c.parsed.x.toFixed(2)+'%',
+        } },
+      },
+      scales: { x: { min:0, max:100, ticks:{ callback:v=>v+'%' } }, y: { ticks:{ autoSkip:false } } },
+    },
+  });
+
+  // 4) Qtde Inspecionada x Defeitos por mês (combo barra+linha, eixo secundário)
+  const qtdesPorMes    = mesesChave.map(m => porChave[m.chave]?.qtde||0);
+  const defeitosPorMes = mesesChave.map(m => porChave[m.chave]?.defeitos||0);
+  if (_qAnQtdeDefeitos) _qAnQtdeDefeitos.destroy();
+  _qAnQtdeDefeitos = new Chart(document.getElementById('q-an-qtde-defeitos').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: labelsMeses,
+      datasets: [
+        { type:'bar',  label:'Qtde Inspecionada', data: qtdesPorMes,    backgroundColor:'#1a73e8', yAxisID:'y',  borderRadius:6 },
+        { type:'line', label:'Defeitos',          data: defeitosPorMes, borderColor:'#dc2626', backgroundColor:'#dc2626', yAxisID:'y1', tension:.25, pointRadius:3 },
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode:'index', intersect:false },
+      plugins: { tooltip: { callbacks:{ label:c => c.dataset.label+': '+fmtNum(c.parsed.y) } } },
+      scales: {
+        y:  { position:'left',  ticks:{ callback:v=>fmtNum(v) } },
+        y1: { position:'right', ticks:{ callback:v=>fmtNum(v) }, grid:{ drawOnChartArea:false } },
+      },
     },
   });
 }
